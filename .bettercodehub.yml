@@ -1,0 +1,6 @@
+component_depth: 2
+languages:
+- python
+exclude:
+- /kpi_radio/consts/.*
+- /kpi_radio/bot/handlers.py

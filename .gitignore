@@ -1,0 +1,10 @@
+./__pycache__
+.idea/*
+*.pyc
+*.pem
+*.env
+test.py
+stuff
+stuff/*
+
+# научите пользоваться этим умоляю

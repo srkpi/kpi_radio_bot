@@ -1,0 +1,15 @@
+aiogram
+aiohttp
+aioschedule
+beautifulsoup4
+matplotlib
+python-dotenv
+youtube-dl
+peewee
+
+# mopidy
+Mopidy
+mopidy-async-client
+
+# radioboss
+# xmltodict
