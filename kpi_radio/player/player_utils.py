@@ -2,7 +2,7 @@ import logging
 from random import choice
 from typing import Optional
 
-from consts import others
+from kpi_radio.consts import others
 from .backends.playlist import PlaylistItem
 
 

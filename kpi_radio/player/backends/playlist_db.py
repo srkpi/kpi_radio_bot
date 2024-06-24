@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from consts import config, others
-from player.ether import Ether
-from utils import db, DateTime
+from kpi_radio.consts import config, others
+from kpi_radio.player.ether import Ether
+from kpi_radio.utils import db, DateTime
 from .playlist import Playlist, PlaylistItem
 
 
@@ -41,7 +41,7 @@ class DBPlaylistProvider:
             return DateTime.now()
 
         if self.ether.is_now():
-            from player import Broadcast
+            from kpi_radio.player import Broadcast
             return await Broadcast.player.current_track_stop_time()
 
         return self.ether.start_time

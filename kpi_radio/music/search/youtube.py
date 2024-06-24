@@ -2,7 +2,7 @@ from typing import List
 
 import youtube_dl
 
-from music.search.searcher import Searcher, AudioResult
+from kpi_radio.music.search.searcher import Searcher, AudioResult
 
 
 class YouTube(Searcher):

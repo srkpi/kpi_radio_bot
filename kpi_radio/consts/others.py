@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from consts.config import IS_TEST_ENV, PATH_ROOT
+from kpi_radio.consts.config import IS_TEST_ENV, PATH_ROOT
 
 HISTORY_CHANNEL_LINK = 'https://t.me/rkpi_music'
 

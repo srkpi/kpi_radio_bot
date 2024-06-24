@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from peewee import BigIntegerField, CharField, DateTimeField
 
-from consts.btns_text import STATUS
+from kpi_radio.consts.btns_text import STATUS
 from ._connector import BaseModel
 
 

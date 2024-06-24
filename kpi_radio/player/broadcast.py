@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional, List
 
-from consts import config
+from kpi_radio.consts import config
 from .backends import Playlist, PlaylistItem, DBPlaylistProvider, PlayerMopidy
 from .ether import Ether
 from .player_utils import get_random_from_archive

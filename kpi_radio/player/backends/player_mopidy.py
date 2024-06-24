@@ -10,8 +10,8 @@ from typing import Optional, Iterable
 from mopidy import models
 from mopidy_async_client import MopidyClient  # годная либа годный автор всем советую
 
-from main import events
-from utils import DateTime
+from kpi_radio.main import events
+from kpi_radio.utils import DateTime
 from .playlist import PlaylistItem
 
 

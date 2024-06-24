@@ -1,10 +1,10 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
-from consts import btns_text
-from consts.btns_text import STATUS, MENU
-from consts.others import HISTORY_CHANNEL_LINK, NEXT_DAYS, ETHER_NAMES, WEEK_DAYS, ETHER_TIMES
-from player import Ether, Broadcast
-from utils import DateTime
+from kpi_radio.consts import btns_text
+from kpi_radio.consts.btns_text import STATUS, MENU
+from kpi_radio.consts.others import HISTORY_CHANNEL_LINK, NEXT_DAYS, ETHER_NAMES, WEEK_DAYS, ETHER_TIMES
+from kpi_radio.player import Ether, Broadcast
+from kpi_radio.utils import DateTime
 from . import _callbacks as cb
 
 

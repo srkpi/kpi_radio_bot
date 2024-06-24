@@ -3,9 +3,9 @@ from typing import Tuple, Optional
 
 from aiogram.types import Message
 
-from consts.config import BOT, ADMINS_CHAT_ID
-from consts import texts
-from utils import utils, lru
+from kpi_radio.consts.config import BOT, ADMINS_CHAT_ID
+from kpi_radio.consts import texts
+from kpi_radio.utils import utils, lru
 from .id_to_hashtag import id_to_hashtag
 
 # key value db: to_message_id: (from_chat_id, from_message_id)

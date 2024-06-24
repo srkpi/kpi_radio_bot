@@ -2,7 +2,7 @@ from itertools import islice
 
 from aiohttp import web
 
-from music import search_text
+from kpi_radio.music import search_text
 
 ROUTES = web.RouteTableDef()
 

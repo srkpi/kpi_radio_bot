@@ -1,8 +1,8 @@
 from aiohttp import web
 
-from bot import bot
-from consts import config
-from main import server, events
+from kpi_radio.bot import bot
+from kpi_radio.consts import config
+from kpi_radio.main import server, events
 
 
 def start():
@@ -10,7 +10,7 @@ def start():
     on_shutdown = [lambda _: events.SHUTDOWN_EVENT()]
 
     if config.IS_TEST_ENV:
-        from utils import DateTime
+        from kpi_radio.utils import DateTime
         # DateTime.fake(2021, 1, 6, 10, 15, 0)
         events.STARTUP_EVENT.register(lambda: events.ETHER_BEGIN_EVENT.notify(2, 0))
         bot.start_longpoll(on_startup=on_startup, on_shutdown=on_shutdown)

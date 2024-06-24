@@ -4,8 +4,8 @@ from datetime import datetime
 from functools import cached_property, cache
 from typing import Iterable, List, Optional
 
-from consts import others
-from utils import DateTime
+from kpi_radio.consts import others
+from kpi_radio.utils import DateTime
 
 
 class Ether:

@@ -1,8 +1,8 @@
 from typing import List
 from urllib.parse import quote_plus
 
-from music.search.searcher import Searcher, AudioResult
-from utils.lru import lru
+from kpi_radio.music.search.searcher import Searcher, AudioResult
+from kpi_radio.utils.lru import lru
 
 _BASE_URL = "http://api.svinua.tk/musicless/"
 

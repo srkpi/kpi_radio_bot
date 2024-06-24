@@ -5,8 +5,8 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
-from consts.config import AIOHTTP_SESSION, LOOP
-from utils.lru import lru
+from kpi_radio.consts.config import AIOHTTP_SESSION, LOOP
+from kpi_radio.utils.lru import lru
 
 _RE_GENIUS_BRACKETS = re.compile(r" \([\w\d ]+\)")
 

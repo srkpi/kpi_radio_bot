@@ -1,6 +1,6 @@
 import json
 
-from consts.btns_text import CALLBACKS as CB
+from kpi_radio.consts.btns_text import CALLBACKS as CB
 
 
 # callbackdata пробел base, не база данных

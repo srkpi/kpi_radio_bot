@@ -5,10 +5,10 @@ from typing import Union
 
 from aiogram import types, exceptions
 
-import music
-from bot.bot_utils import kb
-from consts import texts
-from utils import utils
+from kpi_radio import music
+from kpi_radio.bot.bot_utils import kb
+from kpi_radio.consts import texts
+from kpi_radio.utils import utils
 
 
 async def search_audio(message: types.Message):
@@ -68,6 +68,7 @@ async def sent_audio(message: types.Message, audio: Union[types.Audio, music.Aud
         (texts.BAD_ORDER_SHORT, audio.duration < 60),
         (texts.BAD_ORDER_LONG, audio.duration > 60 * 6),
         (texts.BAD_ORDER_BADWORDS, await music.check.is_contain_bad_words(name)),
+        (texts.BAD_LANGUAGE, await music.check.is_russian(name)),
         (texts.BAD_ORDER_ANIME, await music.check.is_anime(name)),
         (texts.BAD_ORDER_PERFORMER, music.check.is_bad_name(name)),
     )

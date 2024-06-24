@@ -15,8 +15,8 @@ from typing import Dict, Optional, List, Iterator
 
 from matplotlib import pyplot as plt
 
-from consts.config import PATH_STUFF
-from utils import db, DateTime
+from kpi_radio.consts.config import PATH_STUFF
+from kpi_radio.utils import db, DateTime
 from .small_utils import get_moders
 
 PATH_STATS_PNG = PATH_STUFF / 'stats.png'

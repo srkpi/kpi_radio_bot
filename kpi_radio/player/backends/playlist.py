@@ -7,9 +7,9 @@ from typing import Optional, List, Union, Iterable
 
 from aiogram import types
 
-from consts import others
-from player.ether import Ether
-from utils import utils
+from kpi_radio.consts import others
+from kpi_radio.player.ether import Ether
+from kpi_radio.utils import utils
 
 
 @dataclass

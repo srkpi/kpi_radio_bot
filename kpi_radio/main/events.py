@@ -4,9 +4,9 @@ import asyncio
 
 import aioschedule
 
-from consts import config, others
-from player import Ether, PlaylistItem, Broadcast
-from utils import Event
+from kpi_radio.consts import config, others
+from kpi_radio.player import Ether, PlaylistItem, Broadcast
+from kpi_radio.utils import Event
 
 STARTUP_EVENT = Event('statup')
 SHUTDOWN_EVENT = Event('shutdown')

@@ -2,8 +2,8 @@ from typing import Dict, Optional
 
 from aiogram.types import ChatMember, User
 
-from consts.config import ADMINS_CHAT_ID, BOT
-from utils.lru import lru
+from kpi_radio.consts.config import ADMINS_CHAT_ID, BOT
+from kpi_radio.utils.lru import lru
 
 
 @lru(maxsize=1, ttl=60 * 60 * 12)

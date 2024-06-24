@@ -1,2 +1,3 @@
-from main import start
+from kpi_radio.main import start
 start()
+

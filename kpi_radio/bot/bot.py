@@ -5,8 +5,8 @@ from aiogram.dispatcher.webhook import WebhookRequestHandler, DEFAULT_WEB_PATH, 
 from aiogram.utils import executor
 from aiohttp import web
 
-from bot.bot_utils import bind_filters
-from consts.config import BOT
+from kpi_radio.bot.bot_utils import bind_filters
+from kpi_radio.consts.config import BOT
 from .handlers import register_handlers
 
 DP = Dispatcher(BOT)

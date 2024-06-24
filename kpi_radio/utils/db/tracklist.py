@@ -8,7 +8,7 @@ from peewee import IntegerField, BigIntegerField, CharField, DecimalField, Compo
 from ._connector import BaseModel
 
 if TYPE_CHECKING:
-    from player import PlaylistItem, Ether
+    from kpi_radio.player import PlaylistItem, Ether
 
 
 class Tracklist(BaseModel):

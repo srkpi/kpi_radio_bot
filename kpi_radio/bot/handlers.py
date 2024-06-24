@@ -3,10 +3,10 @@ from contextlib import suppress
 
 from aiogram import types, exceptions
 
-from bot import handlers_
-from bot.bot_utils import communication, kb
-from consts import texts
-from player import Ether
+from kpi_radio.bot import handlers_
+from kpi_radio.bot.bot_utils import communication, kb
+from kpi_radio.consts import texts
+from kpi_radio.player import Ether
 
 ALLOWED_FEEDBACK_TYPES = ['text', 'audio', 'photo', 'sticker']
 

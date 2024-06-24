@@ -7,6 +7,7 @@ import aiohttp
 import matplotlib
 from aiogram import Bot
 from dotenv import load_dotenv
+from fasttext import load_model
 
 matplotlib.use('agg')  # что бы не устанавливать tkinter
 
@@ -56,3 +57,5 @@ async def _make_aiohttp_session():
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=LOOP)
 
 LOOP.run_until_complete(_make_aiohttp_session())
+
+FastText = load_model('lid.176.bin')
