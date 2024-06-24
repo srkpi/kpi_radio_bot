@@ -19,7 +19,7 @@ async def gettext(request):
 
 @ROUTES.get("/history")
 async def history_get(request):
-    from player import Broadcast
+    from kpi_radio.player import Broadcast
     history = await Broadcast.player.get_history()
     history = [
         {
@@ -30,3 +30,15 @@ async def history_get(request):
         for item in islice(history, 5)
     ]
     return web.json_response(history)
+
+
+@ROUTES.post("/alert")
+async def history_get(request):
+    from kpi_radio.player import Broadcast
+    data = await request.json()
+    active_alerts = data.get("activeAlerts", [])
+
+    if any(item.get("regionId", -1) == 31 for item in active_alerts):
+        ...
+
+    return web.json_response({"status": "ok"})

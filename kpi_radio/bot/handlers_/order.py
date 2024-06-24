@@ -6,12 +6,12 @@ from urllib.parse import quote
 
 from aiogram import types, exceptions
 
-import music
-from bot import handlers_
-from bot.bot_utils import communication, kb, stats, id_to_hashtag, small_utils
-from consts import texts, others, config, BOT
-from player import Broadcast, Ether, PlaylistItem
-from utils import utils, db, DateTime
+from kpi_radio import music
+from kpi_radio.bot import handlers_
+from kpi_radio.bot.bot_utils import communication, kb, stats, id_to_hashtag, small_utils
+from kpi_radio.consts import texts, others, config, BOT
+from kpi_radio.player import Broadcast, Ether, PlaylistItem
+from kpi_radio.utils import utils, db, DateTime
 
 NotEnoughTimeException = type("NotEnoughTime", (Exception,), {})
 DuplicateException = type("DuplicateException", (Exception,), {})
