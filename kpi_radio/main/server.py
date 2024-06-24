@@ -1,4 +1,5 @@
 from itertools import islice
+from pathlib import Path
 
 from aiohttp import web
 
@@ -34,11 +35,11 @@ async def history_get(request):
 
 @ROUTES.post("/alert")
 async def history_get(request):
-    from kpi_radio.player import Broadcast
+    from kpi_radio.player import Broadcast, PlaylistItem
     data = await request.json()
     active_alerts = data.get("activeAlerts", [])
 
     if any(item.get("regionId", -1) == 31 for item in active_alerts):
-        ...
+        Broadcast.player.add_track(PlaylistItem.from_path(Path('alert.mp3')), at_position=0)
 
     return web.json_response({"status": "ok"})

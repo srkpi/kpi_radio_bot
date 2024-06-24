@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta, datetime
 from pathlib import Path
-from typing import Optional, List, Union, Iterable
+from typing import Optional, List, Union, Iterable, TYPE_CHECKING
 
 from aiogram import types
 
 from kpi_radio.consts import others
-from kpi_radio.player.ether import Ether
+if TYPE_CHECKING:
+    from kpi_radio.player.ether import Ether
 from kpi_radio.utils import utils
 
 

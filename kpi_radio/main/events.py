@@ -5,7 +5,7 @@ import asyncio
 import aioschedule
 
 from kpi_radio.consts import config, others
-from kpi_radio.player import Ether, PlaylistItem, Broadcast
+from kpi_radio.player import PlaylistItem, Broadcast, Ether
 from kpi_radio.utils import Event
 
 STARTUP_EVENT = Event('statup')
@@ -28,13 +28,13 @@ async def track_begin(track: PlaylistItem):
     # трек на входе без TrackInfo, надо спиздить с локального плейлиста, если есть
     if local_track := await Broadcast(ether).mark_played(track.path):
         track = track.add_track_info_(local_track.track_info)
-    from bot.handlers_ import utils
+    from kpi_radio.bot.handlers_ import utils
     await utils.send_history_track(track)
 
 
 @ETHER_BEGIN_EVENT.handler
 async def ether_begin(day, time):
-    from bot.handlers_ import utils
+    from kpi_radio.bot.handlers_ import utils
     broadcast = Broadcast(Ether(day, time))
     await broadcast.play()
     await utils.send_ether_begin(time)

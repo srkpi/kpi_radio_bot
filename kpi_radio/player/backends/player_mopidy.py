@@ -10,7 +10,6 @@ from typing import Optional, Iterable
 from mopidy import models
 from mopidy_async_client import MopidyClient  # годная либа годный автор всем советую
 
-from kpi_radio.main import events
 from kpi_radio.utils import DateTime
 from .playlist import PlaylistItem
 
@@ -68,8 +67,8 @@ class PlayerMopidy:
 
     #
 
-    async def add_track(self, track: PlaylistItem):
-        await self._CLIENT.tracklist.add(uris=[_path_to_uri(track.path)])
+    async def add_track(self, track: PlaylistItem, at_position: Optional[int] = None):
+        await self._CLIENT.tracklist.add(uris=[_path_to_uri(track.path)], at_position=at_position)
 
     async def remove_track(self, track_path: Path) -> Optional[PlaylistItem]:
         if tr := await self._CLIENT.tracklist.remove({'uri': [_path_to_uri(track_path)]}):
@@ -99,11 +98,13 @@ class PlayerMopidy:
 # events
 
 async def playback_state_changed(data):
+    from kpi_radio.main import events
     if data == {'old_state': 'playing', 'new_state': 'stopped'}:    # state = stopped => плейлист пустой
         await events.ORDERS_QUEUE_EMPTY_EVENT.notify()
 
 
 async def track_playback_started(data):
+    from kpi_radio.main import events
     track = _internal_to_playlist_item(data['tl_track'].track)
     await events.TRACK_BEGIN_EVENT.notify(track)
 

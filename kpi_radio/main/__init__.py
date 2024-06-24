@@ -1,5 +1,5 @@
-from . import server, events
-from .start import start
+from kpi_radio.main import server, events
+from kpi_radio.main.start import start
 
 
 __all__ = [
