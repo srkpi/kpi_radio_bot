@@ -3,7 +3,7 @@ services:
   kpi_radio_bot:
     build: ./kpi_radio/
     ports:
-      - 6000:6000
+      - "6000:6000"
     volumes:
     - ./stuff:/stuff
     - /media/data/MUSIC/:/music
@@ -14,7 +14,7 @@ services:
   mopidy:
     build: ./mopidy/
     ports:
-      - 6680:6680
+      - "6680:6680"
     volumes:
       - /media/data/MUSIC/:/music
       - /tmp/pa:/tmp/pa
