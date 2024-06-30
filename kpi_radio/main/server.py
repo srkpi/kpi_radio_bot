@@ -36,7 +36,7 @@ async def history_get(request):
 @ROUTES.post("/alert")
 async def history_get(request):
     from kpi_radio.player import Broadcast, PlaylistItem
-    data = await request.json()
+    data = await request.json(content_type=None)
     active_alerts = data.get("activeAlerts", [])
 
     if any(item.get("regionId", -1) == 31 for item in active_alerts):

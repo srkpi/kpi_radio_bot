@@ -3,10 +3,10 @@ from contextlib import suppress
 
 from aiogram import types, exceptions
 
-from bot.bot_utils import kb
-from consts import texts, others
-from player import Ether, Broadcast
-from utils.db import Users
+from kpi_radio.bot.bot_utils import kb
+from kpi_radio.consts import texts, others
+from kpi_radio.player import Ether, Broadcast
+from kpi_radio.utils.db import Users
 
 
 async def menu(message: types.Message):

@@ -9,10 +9,10 @@ from urllib.parse import unquote
 
 from aiogram import types, exceptions
 
-from bot.bot_utils import communication, kb, stats, small_utils
-from consts import texts, config, BOT
-from player import Ether, Broadcast
-from utils import utils, db
+from kpi_radio.bot.bot_utils import communication, kb, stats, small_utils
+from kpi_radio.consts import texts, config, BOT
+from kpi_radio.player import Ether, Broadcast
+from kpi_radio.utils import utils, db
 
 
 async def ban(message: types.Message):

@@ -29,7 +29,7 @@ async def set_alert_webhook(url, api_key):
                 "webHookUrl": url
             }
         ) as response:
-            logging.info(await response.json())
+            logging.info(await response.text())
 
 
 def start_longpoll(**kwargs):

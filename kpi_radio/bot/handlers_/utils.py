@@ -2,9 +2,9 @@ import asyncio
 import logging
 from pathlib import Path
 
-from consts import BOT, texts, config, others
-from player import Ether, PlaylistItem, Broadcast
-from utils import utils, db
+from kpi_radio.consts import BOT, texts, config, others
+from kpi_radio.player import Ether, PlaylistItem, Broadcast
+from kpi_radio.utils import utils, db
 from ..bot_utils import kb
 
 

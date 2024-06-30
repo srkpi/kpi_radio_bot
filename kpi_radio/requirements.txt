@@ -10,6 +10,8 @@ peewee
 # mopidy
 Mopidy
 mopidy-async-client
+fasttext-wheel
+numpy<2
 
 # radioboss
 # xmltodict

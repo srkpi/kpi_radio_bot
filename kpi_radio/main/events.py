@@ -48,7 +48,7 @@ async def ether_end(*_):
 
 @STARTUP_EVENT.handler
 async def start_up():
-    from bot.handlers_ import utils
+    from kpi_radio.bot.handlers_ import utils
 
     await asyncio.sleep(5)  # wait for mopidy
     await Broadcast.player.connect()

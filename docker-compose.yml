@@ -2,6 +2,7 @@ version: "3"
 services:
   kpi_radio_bot:
     image: kulunchick/kpi-radio:latest
+    restart: on-failure
     ports:
       - "6000:6000"
     volumes:
@@ -15,6 +16,7 @@ services:
 
   mopidy:
     image: kulunchick/mopidy:latest
+    restart: on-failure
     ports:
       - "6680:6680"
     volumes:
@@ -23,3 +25,14 @@ services:
     environment:
       - PULSE_SERVER=unix:/tmp/pa/pulseaudio.socket
       - PULSE_COOKIE=/tmp/pa/pulseaudio.cookie
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: on-failure
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - "--cleanup"
+      - "-i"
+      - "60"
