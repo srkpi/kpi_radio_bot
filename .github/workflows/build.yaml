@@ -26,6 +26,6 @@ jobs:
         name: Build and push mopidy
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:kpi_radio"
+          context: "{{defaultContext}}:mopidy"
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/mopidy:latest
