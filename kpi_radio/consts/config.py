@@ -45,7 +45,10 @@ HOST = getenv("HOST")
 PORT = int(getenv("PORT"))  # port for internal server
 
 WEBHOOK_URL = f"https://{HOST}/webhook"
+ALERT_URL = f"https://{HOST}/alert"
 #
+
+ALERT_API_KEY = getenv("ALERT_API_KEY")
 
 BOT = Bot(token=TOKEN, parse_mode='HTML')
 LOOP = asyncio.get_event_loop()

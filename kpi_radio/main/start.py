@@ -17,6 +17,7 @@ def start():
         # start_server(on_startup=on_startup, on_shutdown=on_shutdown, port=8080)
     else:
         on_startup.append(lambda _: bot.set_webhook(config.WEBHOOK_URL))
+        on_startup.append(lambda _: bot.set_alert_webhook(config.ALERT_URL, config.ALERT_API_KEY))
         start_server(on_startup=on_startup, on_shutdown=on_shutdown)
 
 

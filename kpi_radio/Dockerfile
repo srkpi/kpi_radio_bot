@@ -3,6 +3,9 @@ WORKDIR /kpi_radio
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 COPY . .
-RUN wget "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
+RUN apt-get update &&  \
+    apt-get install -y curl &&  \
+    curl -LJO "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
 EXPOSE 443
-CMD ["python", "."]
+WORKDIR /
+CMD ["python", "-m", "kpi_radio"]

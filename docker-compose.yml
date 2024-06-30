@@ -1,7 +1,7 @@
 version: "3"
 services:
   kpi_radio_bot:
-    build: ./kpi_radio/
+    image: kulunchick/kpi-radio:latest
     ports:
       - "6000:6000"
     volumes:
@@ -10,9 +10,11 @@ services:
     - /etc/localtime:/etc/localtime:ro # sync time
     depends_on:
       - mopidy
+    env_file:
+      - .env
 
   mopidy:
-    build: ./mopidy/
+    image: kulunchick/mopidy:latest
     ports:
       - "6680:6680"
     volumes:

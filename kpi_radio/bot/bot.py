@@ -1,5 +1,6 @@
 import logging
 
+import aiohttp
 from aiogram import Dispatcher
 from aiogram.dispatcher.webhook import WebhookRequestHandler, DEFAULT_WEB_PATH, DEFAULT_ROUTE_NAME, BOT_DISPATCHER_KEY
 from aiogram.utils import executor
@@ -17,6 +18,18 @@ register_handlers(DP)
 async def set_webhook(url):
     if (await BOT.get_webhook_info()).url != url:
         await BOT.set_webhook(url)
+
+
+async def set_alert_webhook(url, api_key):
+    headers = {"Authorization": api_key}
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.post(
+            "https://api.ukrainealarm.com/api/v3/webhook",
+            json={
+                "webHookUrl": url
+            }
+        ) as response:
+            logging.info(await response.json())
 
 
 def start_longpoll(**kwargs):
