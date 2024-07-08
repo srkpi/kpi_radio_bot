@@ -6,6 +6,7 @@ import aioschedule
 
 from kpi_radio.consts import config, others
 from kpi_radio.player import PlaylistItem, Broadcast, Ether
+from kpi_radio.scheduler import Scheduler
 from kpi_radio.utils import Event
 
 STARTUP_EVENT = Event('statup')
@@ -52,6 +53,7 @@ async def start_up():
 
     await asyncio.sleep(5)  # wait for mopidy
     await Broadcast.player.connect()
+    Scheduler().start()
     
     asyncio.create_task(start_scheduler())
 

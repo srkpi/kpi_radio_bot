@@ -13,5 +13,6 @@ mopidy-async-client
 fasttext-wheel
 numpy<2
 
+apscheduler
 # radioboss
 # xmltodict
