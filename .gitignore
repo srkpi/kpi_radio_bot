@@ -1,10 +1,13 @@
-./__pycache__
-.idea/*
-*.pyc
-*.pem
-*.env
-test.py
-stuff
-stuff/*
+# python generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-# научите пользоваться этим умоляю
+# venv
+.venv
+.env
+.idea
+.ruff_cache

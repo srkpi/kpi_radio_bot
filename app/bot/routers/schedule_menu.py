@@ -1,0 +1,31 @@
+from aiogram_dialog import Dialog, Window
+from aiogram_dialog.widgets.kbd import Start
+from aiogram_dialog.widgets.text import Const
+
+from app.bot.states.main import MainStates
+from app.bot.states.schedule import ScheduleStates
+
+text = Const("""
+Будні 
+   08:00 - 08:30   Ранковий етер
+   10:05 - 10:25   Перша перерва
+   12:00 - 12:20   Друга перерва
+   13:55 - 14:15   Третя перерва
+   15:50 - 16:10   Четверта перерва
+   18:00 - 22:00   Вечірній етер
+Неділя 
+   12:00 - 18:00   Ранковий етер
+   18:00 - 22:00   Вечірній етер
+""")
+
+schedule_menu = Dialog(
+    Window(
+        text,
+        Start(
+            text=Const("Назад"),
+            id="__main__",
+            state=MainStates.main
+        ),
+        state=ScheduleStates.schedule
+    )
+)
