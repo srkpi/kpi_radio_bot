@@ -1,3 +1,3 @@
 # kpi-radio
 
-Describe your project here.
+run project - `uvicorn app.main:app`
