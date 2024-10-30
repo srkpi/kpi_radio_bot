@@ -14,7 +14,6 @@ class Order(Base):
 
     title: Mapped[Optional[str]]
 
-    file_id: Mapped[Optional[str]]
     url: Mapped[Optional[str]]
     duration: Mapped[int]
 

@@ -3,14 +3,13 @@ from datetime import date, datetime, timedelta
 from typing import Any
 import re
 
-from aiogram import Bot, F
+from aiogram import Bot
 from aiogram.enums import ContentType
 from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager
-from aiogram_dialog.api.entities import MediaAttachment, MediaId
+from aiogram_dialog.api.entities import MediaAttachment
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
-from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Const, Format
 from yt_dlp import YoutubeDL, DownloadError
 
@@ -25,12 +24,7 @@ from app.bot.states.order import OrderStates
 
 
 async def audio_input(message: Message, message_input: MessageInput, manager: DialogManager):
-    manager.dialog_data["audio"] = {
-        "title": message.audio.file_name,
-        "file_id": message.audio.file_id,
-        "duration": message.audio.duration
-    }
-    await manager.next()
+    await message.answer("Аудіофайли не підтримуються")
 
 
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
@@ -40,11 +34,13 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
             info = ydl.extract_info(message.text, download=False)
     except DownloadError:
         return await message.answer("Спробуйте ще раз")
+
     manager.dialog_data["audio"] = {
         "title": info["title"],
         "url": url,
         "duration": info["duration"]
     }
+
     await manager.next()
 
 
@@ -78,7 +74,6 @@ async def on_ether_selected(
         ))
     order = await uow.orders.create(Order(
         title=manager.dialog_data['audio']['title'],
-        file_id=manager.dialog_data['audio'].get('file_id'),
         url=manager.dialog_data['audio'].get('url'),
         duration=manager.dialog_data['audio']['duration'],
         ether=ether
@@ -86,26 +81,15 @@ async def on_ether_selected(
     await uow.flush()
     await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
 
-    audio = manager.dialog_data['audio'].get('file_id', None)
     bot: Bot = manager.middleware_data['bot']
-    if audio:
-        await bot.send_audio(
-            settings.ADMINS_CHAT_ID,
-            audio,
-            caption="Замовлення:\n"
-            f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
-            f"від {callback.from_user.mention_html()}\n",
-            reply_markup=get_confirm_keyboard(order.id)
-        )
-    else:
-        await bot.send_message(
-            settings.ADMINS_CHAT_ID,
-            f"{manager.dialog_data['audio'].get('url')}\n\n"
-            "Замовлення:\n"
-            f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
-            f"від {callback.from_user.mention_html()}\n",
-            reply_markup=get_confirm_keyboard(order.id)
-        )
+    await bot.send_message(
+        settings.ADMINS_CHAT_ID,
+        f"{manager.dialog_data['audio'].get('url')}\n\n"
+        "Замовлення:\n"
+        f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
+        f"від {callback.from_user.mention_html()}\n",
+        reply_markup=get_confirm_keyboard(order.id)
+    )
 
     await manager.done()
 
@@ -117,13 +101,13 @@ def get_ethers_by_day(day: int):
     if day == 0:
         now = datetime.now().time()
         return list(filter(lambda x: x["end"] > now, ethers))
+
     return ethers
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
     audio = MediaAttachment(
         ContentType.AUDIO,
-        file_id=MediaId(dialog_manager.dialog_data["audio"]["file_id"]) if dialog_manager.dialog_data["audio"].get("file_id") else None,
         url=dialog_manager.dialog_data["audio"]["url"] if dialog_manager.dialog_data["audio"].get("url") else None
     )
     days = [
@@ -149,11 +133,7 @@ order_menu = Dialog(
     Window(
         Const(
             "Що ти хочеш почути?\n"
-            # "➖ Напиши назву пісні, та бот її знайде 🔎\n"
-            "➖ Скинь посилання на трек із music.youtube.com\n"
-            "➖ Завантаж або перейшли аудіофайл\n"
-            # "➖ Скористайся інлайн пошуком нижче\n"
-            "➖ Використовуй інших ботів для пошуку та перейшли аудіо сюди (@LyBot)"
+            "Скинь посилання на трек із music.youtube.com\n"
         ),
         MessageInput(
             audio_input,
@@ -171,7 +151,6 @@ order_menu = Dialog(
         state=OrderStates.input
     ),
     Window(
-        DynamicMedia("audio", when=F.audio.file_id),
         Const("Вибери день"),
         Column(
             Select(

@@ -25,10 +25,7 @@ async def skip(message: Message, uow: UnitOfWork):
     next_order = await uow.orders.find_one(order.ether_id == order.ether_id, Order.played == False, offset=1)
     order.played = True
 
-    if next_order.file_id:
-        player.play(f"telegram://{next_order.file_id}")
-    else:
-        player.play(f"{next_order.url}")
+    player.play(f"{next_order.url}")
 
     await message.answer("Трек скіпнуто")
 
