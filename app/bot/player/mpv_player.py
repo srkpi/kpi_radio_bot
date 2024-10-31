@@ -4,7 +4,6 @@ from datetime import datetime
 from time import sleep
 
 import mpv
-from aiogram import Bot
 
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
@@ -30,19 +29,6 @@ player['vo'] = 'gpu'
 player['ao'] = 'alsa'
 
 
-async def get_music(file_id: str):
-    bot = Bot(token=settings.TOKEN.get_secret_value())
-    try:
-        file = await bot.get_file(file_id)
-        file_path = file.file_path
-        result = await bot.download_file(file_path)
-    except Exception as err:
-        print(err)
-        raise ValueError()
-    print(result)
-    return result
-
-
 async def get_current_track(async_session):
     today = datetime.now()
     async with async_session() as session, session.begin():
@@ -57,10 +43,8 @@ async def get_current_track(async_session):
                                               Order.confirmed == True)
             if not order:
                 return
-            if order.file_id:
-                return f"telegram://{order.file_id}"
-            else:
-                return f"{order.url}"
+
+            return f"{order.url}"
 
 
 async def set_latest_track_played(async_session):
@@ -86,22 +70,3 @@ def on_end_file(event):
     track = loop.run_until_complete(get_current_track(sessionmaker))
     if track:
         player.play(track)
-
-
-class ReturnableThread(threading.Thread):
-    def __init__(self, uri):
-        threading.Thread.__init__(self)
-        self.uri = uri
-        self.result = None
-
-    def run(self) -> None:
-        self.result = asyncio.run(get_music(self.uri))
-
-
-@player.register_stream_protocol('telegram')
-def open_fn(uri):
-    print(uri)
-    _thread = ReturnableThread(uri.strip('telegram://'))
-    _thread.start()
-    _thread.join()
-    return _thread.result

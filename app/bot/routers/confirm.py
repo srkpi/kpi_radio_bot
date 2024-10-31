@@ -20,10 +20,7 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
     if order.ether.date == today.date() and order.ether.end_time > today.time() > order.ether.start_time:
         current = await uow.orders.find_one(Order.ether_id == order.ether_id, Order.played == False, Order.confirmed == True)
         if not current:
-            if order.file_id:
-                player.play(f"telegram://{order.file_id}")
-            else:
-                player.play(order.url)
+            player.play(order.url)
     if callback.message.caption:
         await callback.message.edit_caption(caption=text)
     else:
