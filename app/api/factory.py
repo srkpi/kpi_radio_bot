@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
+import logging
 
 import aiohttp
-import ngrok
 from aiogram import Bot, Dispatcher
+from aiogram.types import InputFile, BufferedInputFile, FSInputFile
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import AnyUrl
@@ -16,15 +17,12 @@ from app.settings import settings
 def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        ngrok.set_auth_token(settings.NGROK_AUTHTOKEN.get_secret_value())
-        tunnel = await ngrok.connect(8000)
-        settings.BASE_URL = AnyUrl(tunnel.url())
         await dispatcher.emit_startup(**workflow_data)
         async with aiohttp.ClientSession(headers={"Authorization": settings.UKRAINEALARM_TOKEN.get_secret_value()}) as session:
-            await session.post("https://api.ukrainealarm.com/api/v3/webhook", json={"webHookUrl": f"{settings.BASE_URL}alert"})
+            r = await session.post("https://api.ukrainealarm.com/api/v3/webhook", json={"webHookUrl": f"{settings.BASE_URL}alert"})
+            print(r.text)
         yield
         await dispatcher.emit_shutdown(**workflow_data)
-        ngrok.disconnect()
 
     app = FastAPI(lifespan=lifespan)
 

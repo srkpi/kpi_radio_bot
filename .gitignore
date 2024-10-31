@@ -11,3 +11,6 @@ wheels/
 .env
 .idea
 .ruff_cache
+
+certificate.pem
+private.key

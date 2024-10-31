@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage, RedisEventIsolation
-from aiogram.types import InputFile, BufferedInputFile
+from aiogram.types import InputFile, BufferedInputFile, FSInputFile
 from aiogram_dialog import setup_dialogs
 from aiogram_dialog.api.entities import MediaAttachment
 from aiogram_dialog.manager.message_manager import MessageManager
@@ -36,7 +36,11 @@ async def on_startup(bot: Bot) -> None:
         await conn.run_sync(Base.metadata.create_all)
     if (await bot.get_webhook_info()).url != settings.WEBHOOK_URL:
         await bot.delete_webhook(drop_pending_updates=True)
-        await bot.set_webhook(f"{settings.WEBHOOK_URL}", secret_token=settings.TELEGRAM_SECRET.get_secret_value())
+        await bot.set_webhook(
+            f"{settings.WEBHOOK_URL}", 
+            secret_token=settings.TELEGRAM_SECRET.get_secret_value(),
+            certificate=FSInputFile('certificate.pem'),
+        )
     await start_current_ether()
 
 

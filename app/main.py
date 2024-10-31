@@ -6,7 +6,7 @@ from app.api.factory import create_app
 from app.bot.factory import create_bot, create_dispatcher
 from app.settings import settings
 
-logging.basicConfig(level="DEBUG")
+# logging.basicConfig(level="DEBUG")
 
 bot = create_bot(token=settings.TOKEN.get_secret_value())
 dispatcher = create_dispatcher()
