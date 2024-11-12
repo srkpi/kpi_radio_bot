@@ -13,11 +13,12 @@ class Settings(BaseSettings):
 
     BASE_URL: AnyUrl = AnyUrl("http://localhost:8000")
 
+    SPOTIPY_CLIENT_ID: SecretStr
+    SPOTIPY_CLIENT_SECRET: SecretStr
+
     @property
     def WEBHOOK_URL(self) -> str:
         return f"{self.BASE_URL}webhook"
-
-
 
     model_config = SettingsConfigDict(
         env_file=('stack.env', '.env'),
