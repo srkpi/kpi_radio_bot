@@ -2,6 +2,10 @@ import operator
 from datetime import date, datetime, timedelta
 from typing import Any
 import re
+import logging
+
+from langdetect import detect
+from youtubesearchpython import VideosSearch
 
 from aiogram import Bot
 from aiogram.enums import ContentType
@@ -21,6 +25,8 @@ from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
+from app.bot.services.genius import search_lyrics
+from app.bot.services.spotipy import get_track_info
 
 
 async def audio_input(message: Message, message_input: MessageInput, manager: DialogManager):
@@ -29,16 +35,63 @@ async def audio_input(message: Message, message_input: MessageInput, manager: Di
 
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
     url = re.sub(r'&list=.*', '', message.text)
+    song_name = None
+
+    if "spotify.com" in url:
+        track_info = get_track_info(url)
+        if track_info:
+            title = track_info["name"]
+            artist = track_info["artists"][0]["name"]
+            song_name = f"{title} {artist}"
+
+            video_search = VideosSearch(song_name, limit=1)
+            video_result = video_search.result()
+            if not video_result["result"]:
+                return await message.answer(
+                    f"Не вдалося знайти трек {song_name} на YouTube"
+                )
+
+            youtube_url = (
+                "https://www.youtube.com/watch?v=" + video_result["result"][0]["id"]
+            )
+        else:
+            return await message.answer("Не вдалося знайти трек у Spotify")
+    elif "youtube.com" in url or "youtu.be" in url or "music.youtube.com" in url:
+        youtube_url = url
+    else:
+        return await message.answer(
+            "Невірний URL. Будь ласка, надішліть посилання на Spotify, YouTube або YouTube Music."
+        )
+
     try:
-        with YoutubeDL() as ydl:
-            info = ydl.extract_info(message.text, download=False)
+        with YoutubeDL({"extract_flat": "in_playlist"}) as ydl:
+            info = ydl.extract_info(youtube_url, download=False)
     except DownloadError:
         return await message.answer("Спробуйте ще раз")
 
+    logging.info("-" * 30)
+    title = song_name if song_name else info.get("title")
+    language = None
+    lyrics_result = await search_lyrics(title)
+    if lyrics_result:
+        lyrics = lyrics_result[1].replace("\\n", "\n")
+        logging.info(lyrics)
+        logging.info("-" * 30)
+        language = detect(lyrics)
+
+    logging.info(f"Language: {language}")
+    logging.info("-" * 30)
+
+    if language == "ru":
+        return await message.answer(
+            "Російські пісні замовляти не можна"
+        )
+
     manager.dialog_data["audio"] = {
-        "title": info["title"],
+        "title": title,
         "url": url,
-        "duration": info["duration"]
+        "duration": info["duration"],
+        "language": language,
     }
 
     await manager.next()
@@ -81,14 +134,16 @@ async def on_ether_selected(
     await uow.flush()
     await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
 
+    language = manager.dialog_data["audio"]["language"]
+
     bot: Bot = manager.middleware_data['bot']
     await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"{manager.dialog_data['audio'].get('url')}\n\n"
+        f"{manager.dialog_data['audio'].get('url')}{ f' ({language})' if language else '' }\n\n"
         "Замовлення:\n"
         f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
         f"від {callback.from_user.mention_html()}\n",
-        reply_markup=get_confirm_keyboard(order.id)
+        reply_markup=get_confirm_keyboard(order.id, callback.from_user.id)
     )
 
     await manager.done()
@@ -133,7 +188,7 @@ order_menu = Dialog(
     Window(
         Const(
             "Що ти хочеш почути?\n"
-            "Скинь посилання на трек із music.youtube.com\n"
+            "Скинь посилання на трек із music.youtube.com або Spotify\n"
         ),
         MessageInput(
             audio_input,
