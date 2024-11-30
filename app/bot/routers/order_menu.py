@@ -36,8 +36,10 @@ async def audio_input(message: Message, message_input: MessageInput, manager: Di
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
     url = re.sub(r'&list=.*', '', message.text)
     song_name = None
+    is_spotify = False
 
     if "spotify.com" in url:
+        is_spotify = True
         track_info = get_track_info(url)
         if track_info:
             title = track_info["name"]
@@ -89,7 +91,8 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
 
     manager.dialog_data["audio"] = {
         "title": title,
-        "url": url,
+        "url": youtube_url if is_spotify else url,
+        "spotify_url": url if is_spotify else None,
         "duration": info["duration"],
         "language": language,
     }
@@ -137,9 +140,14 @@ async def on_ether_selected(
     language = manager.dialog_data["audio"]["language"]
 
     bot: Bot = manager.middleware_data['bot']
+
+    spotify_url = manager.dialog_data['audio'].get('spotify_url')
+    spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ''
+    language_label = f' [{language}]' if language else ''
+
     await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"{manager.dialog_data['audio'].get('url')}{ f' ({language})' if language else '' }\n\n"
+        f"{manager.dialog_data['audio'].get('url')}{spotify_link}{language_label}\n\n"
         "Замовлення:\n"
         f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
         f"від {callback.from_user.mention_html()}\n",

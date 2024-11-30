@@ -13,7 +13,7 @@ def get_track_info(url: str):
         )
         track_info = sp.track(url)
     except Exception as ex:
-        logging.exception("get track info", ex)
+        logging.exception(ex)
         return None
 
     return track_info

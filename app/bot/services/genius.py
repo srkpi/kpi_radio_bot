@@ -3,14 +3,12 @@ import logging
 import aiohttp
 from typing import Optional, Tuple
 from urllib.parse import quote_plus
-from cachetools import cached, TTLCache
 from bs4 import BeautifulSoup
 
 AIOHTTP_SESSION = None
 _RE_GENIUS_BRACKETS = re.compile(r" \([\w\d ]+\)")
 
 
-@cached(cache=TTLCache(maxsize=1024, ttl=60 * 60 * 12))
 async def search_lyrics(name: str) -> Optional[Tuple[str, str]]:
     global AIOHTTP_SESSION
     if AIOHTTP_SESSION is None:
@@ -23,7 +21,7 @@ async def search_lyrics(name: str) -> Optional[Tuple[str, str]]:
         title = _delete_translit_from_title(song["full_title"])
         return title, lyrics
     except Exception as ex:
-        logging.exception("search text", ex)
+        logging.exception(ex)
         return None
 
 
