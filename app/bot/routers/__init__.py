@@ -24,6 +24,9 @@ private_router.message.filter(F.chat.type == ChatType.PRIVATE)
 
 private_router.message.register(start, CommandStart())
 private_router.message.register(help_command, Command("help"))
+
+private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
+
 router.message.register(skip, Command("skip"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(stop, Command("stop"), F.chat.id == settings.ADMINS_CHAT_ID)
 

@@ -4,7 +4,6 @@ from typing import Any
 import re
 import logging
 
-from langdetect import detect
 from youtubesearchpython import VideosSearch
 
 from aiogram import Bot
@@ -25,7 +24,7 @@ from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
-from app.bot.services.genius import search_lyrics
+from app.bot.services.genius import get_song_language
 from app.bot.services.spotipy import get_track_info
 
 
@@ -65,24 +64,22 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
             "Невірний URL. Будь ласка, надішліть посилання на Spotify, YouTube або YouTube Music."
         )
 
+    options = {
+        "skip_download": True,
+        "extract_flat": True,
+        "force_generic_extractor": True,  # Use generic extraction for simplicity
+    }
+
     try:
-        with YoutubeDL({"extract_flat": "in_playlist"}) as ydl:
-            info = ydl.extract_info(youtube_url, download=False)
+        with YoutubeDL() as ydl:
+            info = ydl.extract_info(youtube_url, download=False, process=False)
     except DownloadError:
         return await message.answer("Спробуйте ще раз")
 
-    logging.info("-" * 30)
     title = song_name if song_name else info.get("title")
-    language = None
-    lyrics_result = await search_lyrics(title)
-    if lyrics_result:
-        lyrics = lyrics_result[1].replace("\\n", "\n")
-        logging.info(lyrics)
-        logging.info("-" * 30)
-        language = detect(lyrics)
+    language = await get_song_language(title)
 
-    logging.info(f"Language: {language}")
-    logging.info("-" * 30)
+    logging.info(f"Song Language: {language}")
 
     if language == "ru":
         return await message.answer(
@@ -93,7 +90,7 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
         "title": title,
         "url": youtube_url if is_spotify else url,
         "spotify_url": url if is_spotify else None,
-        "duration": info["duration"],
+        "duration": info.get("duration"),
         "language": language,
     }
 
@@ -151,7 +148,8 @@ async def on_ether_selected(
         "Замовлення:\n"
         f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
         f"від {callback.from_user.mention_html()}\n",
-        reply_markup=get_confirm_keyboard(order.id, callback.from_user.id)
+        reply_markup=get_confirm_keyboard(order.id, callback.from_user.id),
+        message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
     )
 
     await manager.done()
