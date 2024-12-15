@@ -35,13 +35,13 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
 
                 await callback.bot.send_message(
                     callback_data.user_id,
-                    f"✅ Ваше замовлення прийнято: {order.title}\n"
+                    f"✅ Твоє замовлення прийнято: {order.title}\n"
                     f"🕓 Орієнтовно програє: {play_time_str}",
                 )
             else:
                 await callback.bot.send_message(
                     callback_data.user_id,
-                    f"✅ Ваше замовлення прийнято: {order.title}\n"
+                    f"✅ Твоє замовлення прийнято: {order.title}\n"
                     f"🕓 Орієнтовно програє: зараз",
                 )
                 player.play(order.url)
@@ -63,7 +63,7 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
 
             await callback.bot.send_message(
                 callback_data.user_id,
-                f"✅ Ваше замовлення прийнято: {order.title}\n"
+                f"✅ Твоє замовлення прийнято: {order.title}\n"
                 f"🕓 Орієнтовно програє: {play_time_str}",
             )
 
@@ -82,7 +82,7 @@ async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
         order.confirmed = False
 
         await callback.bot.send_message(
-            callback_data.user_id, f"❌ Ваше замовлення відхилено: {order.title}"
+            callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
         )
 
     if callback.message.caption:
