@@ -118,6 +118,7 @@ async def on_ether_selected(
     selected_date = date.today() + timedelta(days=day)
     selected_ether = next(filter(lambda x: x['id'] == int(ether_id), get_ethers_by_day(day)), None)
     ether = await uow.ethers.find_one(Ether.date == selected_date, Ether.start_time == selected_ether["start"])
+    duration = manager.dialog_data['audio']['duration']
     if not ether:
         ether = await uow.ethers.create(Ether(
             name=selected_ether["name"],
@@ -128,7 +129,7 @@ async def on_ether_selected(
     order = await uow.orders.create(Order(
         title=manager.dialog_data['audio']['title'],
         url=manager.dialog_data['audio'].get('url'),
-        duration=manager.dialog_data['audio']['duration'],
+        duration=duration,
         ether=ether
     ))
     await uow.flush()
@@ -142,11 +143,18 @@ async def on_ether_selected(
     spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ''
     language_label = f' [{language}]' if language else ''
 
+    if duration and duration > 0:
+        minutes = duration // 60
+        seconds = duration % 60
+        duration_label = f"тривалість: {minutes}:{seconds:02}\n"
+    else:
+        duration_label = ""
+
     await bot.send_message(
         settings.ADMINS_CHAT_ID,
         f"{manager.dialog_data['audio'].get('url')}{spotify_link}{language_label}\n\n"
         "Замовлення:\n"
-        f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n"
+        f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n{duration_label}"
         f"від {callback.from_user.mention_html()}\n",
         reply_markup=get_confirm_keyboard(order.id, callback.from_user.id),
         message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,

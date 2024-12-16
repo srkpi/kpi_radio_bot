@@ -67,6 +67,8 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 f"🕓 Орієнтовно програє: {play_time_str}",
             )
 
+    await uow.flush()
+
     if callback.message.caption:
         await callback.message.edit_caption(caption=text)
     else:
@@ -84,6 +86,8 @@ async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
         await callback.bot.send_message(
             callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
         )
+
+    await uow.flush()
 
     if callback.message.caption:
         await callback.message.edit_caption(caption=text)
