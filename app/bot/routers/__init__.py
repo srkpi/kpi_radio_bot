@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
-from aiogram_dialog.api.exceptions import UnknownIntent
+from aiogram_dialog.api.exceptions import UnknownIntent, OutdatedIntent
 
 from app.bot.consts.actions import Actions
 from app.bot.routers.confirm import confirm_order, decline_order
@@ -39,3 +39,4 @@ private_router.include_router(player_menu)
 router.include_router(private_router)
 
 router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
+router.error.register(context_not_found, ExceptionTypeFilter(OutdatedIntent))

@@ -44,8 +44,8 @@ player_menu = Dialog(
     Window(
         Jinja(
             "⏮ Попередній трек: {{ previous }}\n"
-            "▶️ Зараз грає:  {{ current }}\n"
-            "⏭ Наступний трек:  {{ next }}\n"
+            "▶️ Зараз грає: {{ current }}\n"
+            "⏭ Наступний трек: {{ next }}\n"
         ),
         Start(
             text=Const("Назад"),

@@ -11,6 +11,6 @@ WEEKDAY_ETHERS = [
 ]
 
 WEEKEND_ETHERS = [
-    {"id": 6, "name": "Ранковий етер", "start": time(8, 0), "end": time(18, 0)},
+    {"id": 6, "name": "Ранковий етер", "start": time(9, 0), "end": time(18, 0)},
     {"id": 7, "name": "Вечірній етер", "start": time(18, 0), "end": time(22, 0)},
 ]

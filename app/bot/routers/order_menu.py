@@ -33,7 +33,8 @@ async def audio_input(message: Message, message_input: MessageInput, manager: Di
 
 
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
-    url = re.sub(r'&list=.*', '', message.text)
+    url = re.sub(r'&list=[a-zA-Z0-9]+', '', message.text)
+    url = re.sub(r'\?si=[a-zA-Z0-9]+', '', url)
     song_name = None
     is_spotify = False
 
@@ -58,17 +59,22 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
         else:
             return await message.answer("Не вдалося знайти трек у Spotify")
     elif "youtube.com" in url or "youtu.be" in url or "music.youtube.com" in url:
-        youtube_url = url
+        split_text = url.split()
+        if len(split_text) == 1:
+            if "list=" not in url:
+                youtube_url = url
+            else:
+                return await message.answer(
+                    "Це посилання на плейлист. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
+                )
+        else:
+            return await message.answer(
+                "Невірний URL. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
+            )
     else:
         return await message.answer(
-            "Невірний URL. Будь ласка, надішліть посилання на Spotify, YouTube або YouTube Music."
+            "Невірний URL. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
         )
-
-    options = {
-        "skip_download": True,
-        "extract_flat": True,
-        "force_generic_extractor": True,  # Use generic extraction for simplicity
-    }
 
     try:
         with YoutubeDL() as ydl:
@@ -119,13 +125,37 @@ async def on_ether_selected(
     selected_ether = next(filter(lambda x: x['id'] == int(ether_id), get_ethers_by_day(day)), None)
     ether = await uow.ethers.find_one(Ether.date == selected_date, Ether.start_time == selected_ether["start"])
     duration = manager.dialog_data['audio']['duration']
-    if not ether:
-        ether = await uow.ethers.create(Ether(
-            name=selected_ether["name"],
-            start_time=selected_ether["start"],
-            end_time=selected_ether["end"],
-            date=selected_date
-        ))
+    if ether:
+        ether_orders = await uow.orders.find(
+            Order.ether_id == ether.id,
+            Order.played == False,
+        )
+
+        ether_orders = await uow.orders.find(Order.ether_id == ether.id)
+        total_duration = sum(o.duration for o in ether_orders)
+        play_delay = 5 * len(ether_orders)
+
+        now = datetime.now()
+        if now.date() == ether.date and now.time() > ether.start_time:
+            play_time = now + timedelta(seconds=total_duration + play_delay)
+        else:
+            play_time = datetime.combine(ether.date, ether.start_time) + timedelta(
+                seconds=total_duration + play_delay
+            )
+
+        play_time_str = play_time.strftime("%H:%M")
+    else:
+        start_time = selected_ether["start"]
+        ether = await uow.ethers.create(
+            Ether(
+                name=selected_ether["name"],
+                start_time=start_time,
+                end_time=selected_ether["end"],
+                date=selected_date,
+            )
+        )
+        play_time_str = start_time.strftime("%H:%M")
+
     order = await uow.orders.create(Order(
         title=manager.dialog_data['audio']['title'],
         url=manager.dialog_data['audio'].get('url'),
@@ -146,7 +176,7 @@ async def on_ether_selected(
     if duration and duration > 0:
         minutes = duration // 60
         seconds = duration % 60
-        duration_label = f"тривалість: {minutes}:{seconds:02}\n"
+        duration_label = f"⏳ {minutes}:{seconds:02}\n"
     else:
         duration_label = ""
 
@@ -155,6 +185,7 @@ async def on_ether_selected(
         f"{manager.dialog_data['audio'].get('url')}{spotify_link}{language_label}\n\n"
         "Замовлення:\n"
         f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n{duration_label}"
+        f"🕓 {play_time_str}\n"
         f"від {callback.from_user.mention_html()}\n",
         reply_markup=get_confirm_keyboard(order.id, callback.from_user.id),
         message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,

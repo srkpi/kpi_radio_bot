@@ -22,14 +22,14 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
             current = await uow.orders.find_one(Order.ether_id == order.ether_id, Order.played == False, Order.confirmed == True)
             if current:
                 ether_orders = await uow.orders.find(
-                    Order.id > current.id,
+                    Order.id < current.id,
                     Order.ether_id == order.ether_id,
                     Order.played == False,
                 )
 
                 total_duration = sum(o.duration for o in ether_orders)
 
-                play_delay = 5 * len(ether_orders) + 60
+                play_delay = 5 * len(ether_orders)
                 play_time = datetime.now() + timedelta(seconds=total_duration + play_delay)
                 play_time_str = play_time.strftime("%H:%M")
 

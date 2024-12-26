@@ -35,5 +35,8 @@ async def stop(message: Message, uow: UnitOfWork):
     ether = await uow.ethers.find_one(Ether.date == today.date(), Ether.start_time <= today.time(), Ether.end_time >= today.time(), options=[selectinload(Ether.orders)])
     for order in ether.orders:
         order.played = True
+
+    await uow.flush()
+
     player.stop()
     await message.answer("Чергу зупинено")
