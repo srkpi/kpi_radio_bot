@@ -131,7 +131,6 @@ async def on_ether_selected(
             Order.played == False,
         )
 
-        ether_orders = await uow.orders.find(Order.ether_id == ether.id)
         total_duration = sum(o.duration for o in ether_orders)
         play_delay = 5 * len(ether_orders)
 
@@ -142,6 +141,9 @@ async def on_ether_selected(
             play_time = datetime.combine(ether.date, ether.start_time) + timedelta(
                 seconds=total_duration + play_delay
             )
+
+        if play_time + timedelta(seconds=duration) > datetime.combine(ether.date, ether.end_time):
+            return await callback.message.answer("Пісня не встигне програти до закінчення етеру")
 
         play_time_str = play_time.strftime("%H:%M")
     else:
