@@ -239,7 +239,7 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork):
     else:
         is_weekday = selected_date.weekday() < 6
 
-    ethers = WEEKDAY_ETHERS if is_weekday else WEEKEND_ETHERS
+    ethers = WEEKEND_ETHERS # TODO Remove
 
     if day == 0:
         now = datetime.now().time()
