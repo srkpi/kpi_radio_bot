@@ -14,12 +14,11 @@ from app.bot.states.main import MainStates
 
 def get_text_after_command(message: Message):
     full_text = message.text
-    command_length = len(message.get_command()) + 1
-    text_after_command = (
-        full_text[command_length:] if len(full_text) > command_length else ""
-    )
+    command_end_index = full_text.find(" ")
+    if command_end_index == -1:
+        return ""
 
-    return text_after_command
+    return full_text[command_end_index + 1 :]
 
 
 async def start(message: Message, dialog_manager: DialogManager):
