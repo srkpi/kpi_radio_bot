@@ -16,7 +16,6 @@ class Ether(Base):
     start_time: Mapped[time]
     end_time: Mapped[time]
     date: Mapped[date]
+    cancelled: Mapped[bool]
 
     orders: Mapped[List["Order"]] = relationship(back_populates='ether')
-
-

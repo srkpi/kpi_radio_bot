@@ -3,6 +3,7 @@ import logging
 from spotipy import Spotify, SpotifyClientCredentials
 from app.settings import settings
 
+
 def get_track_info(url: str):
     try:
         sp = Spotify(

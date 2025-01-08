@@ -1,9 +1,10 @@
 from types import TracebackType
-from typing import Self, Type
+from typing import Type
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.models import Base
+from app.bot.repositories.day_state import DayStateRepository
 from app.bot.repositories.ether import EtherRepository
 from app.bot.repositories.order import OrderRepository
 
@@ -13,13 +14,15 @@ class UnitOfWork:
 
     ethers: EtherRepository
     orders: OrderRepository
+    day_state: DayStateRepository
 
     def __init__(self, session: AsyncSession):
         self._session = session
         self.ethers = EtherRepository(self._session)
         self.orders = OrderRepository(self._session)
+        self.day_state = DayStateRepository(self._session)
 
-    async def __aenter__(self) -> Self:
+    async def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type: Type[BaseException], exc_val: BaseException, exc_tb: TracebackType) -> None:
@@ -28,7 +31,7 @@ class UnitOfWork:
     async def commit(self) -> None:
         await self._session.commit()
 
-    async def refresh(self, instance):
+    async def refresh(self, instance) -> None:
         await self._session.refresh(instance)
 
     async def flush(self) -> None:

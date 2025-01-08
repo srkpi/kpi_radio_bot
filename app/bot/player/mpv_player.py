@@ -16,7 +16,7 @@ def mpv_log(loglevel, component, message):
 
 class MPVPlayer(mpv.MPV):
     def slow_volume(self):
-        for i in range(0, 100, 10):
+        for i in range(0, 110, 10):
             self.volume = i
             sleep(0.5)
 
@@ -25,40 +25,35 @@ class MPVPlayer(mpv.MPV):
         super().play(filename)
 
 player = MPVPlayer(ytdl=True, log_handler=mpv_log, input_default_bindings=True, input_vo_keyboard=True)
-player['vo'] = 'gpu'
-player['ao'] = 'alsa'
-
+player['vo'] = 'null'
 
 async def get_current_track(async_session):
     today = datetime.now()
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
             ether = await uow.ethers.find_one(Ether.date == today.date(), Ether.start_time <= today.time(),
-                                              Ether.end_time >= today.time())
+                                              Ether.end_time >= today.time(), Ether.cancelled == False)
             print("ETHER:", ether)
             if not ether:
                 return
 
             order = await uow.orders.find_one(Order.ether_id == ether.id, Order.played == False,
-                                              Order.confirmed == True)
+                                              Order.confirmed == True, order=[Order.decision_timestamp.asc()])
             if not order:
                 return
+
+            order.play_start = datetime.now()
 
             return f"{order.url}"
 
 
 async def set_latest_track_played(async_session):
-    today = datetime.now()
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
-            ether = await uow.ethers.find_one(Ether.date == today.date(), Ether.start_time <= today.time(),
-                                              Ether.end_time >= today.time())
-            if not ether:
-                return
-            order = await uow.orders.find_one(Order.ether_id == ether.id, Order.played == False,
-                                              Order.confirmed == True)
+            order = await uow.orders.find_one(Order.played == False, Order.confirmed == True, order=[Order.play_start.desc()])
             if not order:
                 return
+
             order.played = True
 
 

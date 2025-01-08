@@ -1,3 +1,5 @@
+import re
+
 from datetime import datetime, timedelta
 
 from aiogram.types import CallbackQuery
@@ -17,21 +19,41 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
         text = callback.message.html_text + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
         order.confirmed = True
 
-        today = datetime.now()
-        if order.ether.date == today.date() and order.ether.end_time > today.time() > order.ether.start_time:
-            current = await uow.orders.find_one(Order.ether_id == order.ether_id, Order.played == False, Order.confirmed == True)
-            if current:
-                ether_orders = await uow.orders.find(
-                    Order.id < current.id,
+        current_datetime = datetime.now()
+        order.decision_timestamp = current_datetime
+
+        if (
+            order.ether.date == current_datetime.date()
+            and current_datetime.time() > order.ether.start_time
+        ):
+            current_playing: Order = await uow.orders.find_one(
+                Order.ether_id == order.ether_id,
+                Order.played == False,
+                Order.confirmed == True,
+                order=[Order.decision_timestamp.asc()],
+            )
+
+            if current_playing:
+                ether_not_played_orders: list[Order] = await uow.orders.find(
                     Order.ether_id == order.ether_id,
                     Order.played == False,
+                    Order.confirmed == True,
                 )
+                ether_not_played_orders_len = len(ether_not_played_orders)
 
-                total_duration = sum(o.duration for o in ether_orders)
+                total_duration = sum(o.duration for o in ether_not_played_orders)
+                current_play_start = current_playing.play_start
 
-                play_delay = 5 * len(ether_orders)
+                if current_play_start:
+                    total_duration -= max(
+                        round((current_datetime - current_play_start).total_seconds()),
+                        0,
+                    )
+
+                play_delay = 30 * (ether_not_played_orders_len - 1)
                 play_time = datetime.now() + timedelta(seconds=total_duration + play_delay)
                 play_time_str = play_time.strftime("%H:%M")
+                order.expected_play_time = play_time
 
                 await callback.bot.send_message(
                     callback_data.user_id,
@@ -39,6 +61,10 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     f"🕓 Орієнтовно програє: {play_time_str}",
                 )
             else:
+                play_time = datetime.now()
+                order.expected_play_time = datetime.now()
+                play_time_str = play_time.strftime("%H:%M")
+
                 await callback.bot.send_message(
                     callback_data.user_id,
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
@@ -48,18 +74,20 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
         else:
             ether_orders = await uow.orders.find(
                 Order.ether_id == order.ether_id,
-                Order.played == False
+                Order.played == False,
+                Order.confirmed == True,
             )
 
             total_duration = sum(
                 o.duration for o in ether_orders if o.id != order.id
             )
 
-            play_delay = 5 * len(ether_orders)
+            play_delay = 30 * len(ether_orders)
             play_time = datetime.combine(
                 order.ether.date, order.ether.start_time
             ) + timedelta(seconds=total_duration + play_delay)
             play_time_str = play_time.strftime("%H:%M")
+            order.expected_play_time = play_time
 
             await callback.bot.send_message(
                 callback_data.user_id,
@@ -69,10 +97,12 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
 
     await uow.flush()
 
+    replaced_time_text = re.sub(r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text)
+
     if callback.message.caption:
-        await callback.message.edit_caption(caption=text)
+        await callback.message.edit_caption(caption=replaced_time_text)
     else:
-        await callback.message.edit_text(text)
+        await callback.message.edit_text(replaced_time_text)
 
 
 async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
@@ -82,6 +112,7 @@ async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
     else:
         text = callback.message.html_text + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
         order.confirmed = False
+        order.decision_timestamp = datetime.now()
 
         await callback.bot.send_message(
             callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"

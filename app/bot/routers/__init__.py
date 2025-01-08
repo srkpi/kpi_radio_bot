@@ -7,7 +7,7 @@ from app.bot.consts.actions import Actions
 from app.bot.routers.confirm import confirm_order, decline_order
 from app.bot.routers.errors import context_not_found
 from app.bot.routers.help_menu import help_menu
-from app.bot.routers.commands import help_command, start, skip, stop
+from app.bot.routers.commands import help_command, start, skip, stop, holiday, close, open
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
 from app.bot.routers.player_menu import player_menu
@@ -29,6 +29,9 @@ private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownInte
 
 router.message.register(skip, Command("skip"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(stop, Command("stop"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(holiday, Command("holiday"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(close, Command("close"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(open, Command("open"), F.chat.id == settings.ADMINS_CHAT_ID)
 
 private_router.include_router(main_menu)
 private_router.include_router(help_menu)

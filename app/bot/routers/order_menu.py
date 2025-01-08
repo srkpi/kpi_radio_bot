@@ -20,6 +20,7 @@ from app.bot.consts.ethers import WEEKDAY_ETHERS, WEEKEND_ETHERS
 from app.bot.consts.other import WEEKDAYS
 from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Ether, Order
+from app.bot.models.day_state import DayState
 from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 from app.bot.states.main import MainStates
@@ -122,22 +123,47 @@ async def on_ether_selected(
     uow: UnitOfWork = manager.middleware_data['uow']
     day = manager.dialog_data['day']
     selected_date = date.today() + timedelta(days=day)
-    selected_ether = next(filter(lambda x: x['id'] == int(ether_id), get_ethers_by_day(day)), None)
-    ether = await uow.ethers.find_one(Ether.date == selected_date, Ether.start_time == selected_ether["start"])
+    selected_ether = next(filter(lambda x: x['id'] == int(ether_id), await get_ethers_by_day(day, uow)), None)
+    ether = await uow.ethers.find_one(Ether.date == selected_date, Ether.start_time == selected_ether["start"], Ether.cancelled == False)
     duration = manager.dialog_data['audio']['duration']
     if ether:
-        ether_orders = await uow.orders.find(
+        ether_orders_1 = await uow.orders.find(
             Order.ether_id == ether.id,
             Order.played == False,
+            Order.confirmed == True,
         )
 
+        ether_orders_2 = await uow.orders.find(
+            Order.ether_id == ether.id,
+            Order.played == False,
+            Order.decision_timestamp == None,
+        )
+
+        ether_orders = ether_orders_1 + ether_orders_2
+
         total_duration = sum(o.duration for o in ether_orders)
-        play_delay = 5 * len(ether_orders)
 
         now = datetime.now()
         if now.date() == ether.date and now.time() > ether.start_time:
-            play_time = now + timedelta(seconds=total_duration + play_delay)
+            play_delay = 30 * max((len(ether_orders) - 1), 0)
+            if len(ether_orders):
+                current_playing: Order = await uow.orders.find_one(
+                    Order.ether_id == ether.id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                    order=[Order.decision_timestamp.asc()],
+                )
+                current_play_start = current_playing.play_start
+
+                if current_play_start:
+                    total_duration -= max(
+                        round((now - current_play_start).total_seconds()),
+                        0,
+                    )
+
+            play_time = now + timedelta(seconds=total_duration)
         else:
+            play_delay = 30 * len(ether_orders)
             play_time = datetime.combine(ether.date, ether.start_time) + timedelta(
                 seconds=total_duration + play_delay
             )
@@ -154,9 +180,15 @@ async def on_ether_selected(
                 start_time=start_time,
                 end_time=selected_ether["end"],
                 date=selected_date,
+                cancelled=False,
             )
         )
-        play_time_str = start_time.strftime("%H:%M")
+
+        current_time = datetime.now().time()
+        if day == 0 and current_time > start_time:
+            play_time_str = current_time.strftime("%H:%M")
+        else:
+            play_time_str = start_time.strftime("%H:%M")
 
     order = await uow.orders.create(Order(
         title=manager.dialog_data['audio']['title'],
@@ -196,10 +228,19 @@ async def on_ether_selected(
     await manager.done()
 
 
-def get_ethers_by_day(day: int):
+async def get_ethers_by_day(day: int, uow: UnitOfWork):
     selected_date = date.today() + timedelta(days=day)
-    is_weekday = selected_date.weekday() < 6
+    day_state = await uow.day_state.find_one(DayState.date == selected_date)
+    if day_state:
+        if day_state.is_closed:
+            return []
+
+        is_weekday = not day_state.is_holiday and selected_date.weekday() < 6
+    else:
+        is_weekday = selected_date.weekday() < 6
+
     ethers = WEEKDAY_ETHERS if is_weekday else WEEKEND_ETHERS
+
     if day == 0:
         now = datetime.now().time()
         return list(filter(lambda x: x["end"] > now, ethers))
@@ -208,17 +249,25 @@ def get_ethers_by_day(day: int):
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
+    uow = dialog_manager.middleware_data["uow"]
     audio = MediaAttachment(
         ContentType.AUDIO,
-        url=dialog_manager.dialog_data["audio"]["url"] if dialog_manager.dialog_data["audio"].get("url") else None
+        url=dialog_manager.dialog_data["audio"].get("url")
     )
-    days = [
-        ("Завтра", "1"),
-        ("Післязавтра", "2"),
-        ("Післяпіслязавтра", "3"),
-    ]
-    if len(get_ethers_by_day(0)) > 0:
-        days.insert(0, ("Сьогодні", "0"))
+    days = []
+
+    if len(await get_ethers_by_day(0, uow)) > 0:
+        days.append(("Сьогодні", "0"))
+
+    if len(await get_ethers_by_day(1, uow)) > 0:
+        days.append(("Завтра", "1"))
+
+    if len(await get_ethers_by_day(2, uow)) > 0:
+        days.append(("Післязавтра", "2"))
+
+    if len(await get_ethers_by_day(3, uow)) > 0:
+        days.append(("Післяпіслязавтра", "3"))
+
     return {
         'audio': audio,
         'days': days
@@ -227,9 +276,10 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
 
 async def get_ethers(dialog_manager: DialogManager, **kwargs):
     day = dialog_manager.dialog_data['day']
-    return {
-        'ethers': get_ethers_by_day(day)
-    }
+    uow = dialog_manager.middleware_data["uow"]
+    ethers = await get_ethers_by_day(day, uow)
+
+    return {"ethers": ethers}
 
 order_menu = Dialog(
     Window(
