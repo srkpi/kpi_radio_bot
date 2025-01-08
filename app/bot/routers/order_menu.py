@@ -228,14 +228,15 @@ async def on_ether_selected(
     await manager.done()
 
 
-async def get_ethers_by_day(day: int, uow: UnitOfWork, callbackMessage: Message | None = None):
+async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogManager | None = None):
     selected_date = date.today() + timedelta(days=day)
     day_state = await uow.day_state.find_one(DayState.date == selected_date)
     if day_state:
         if day_state.is_closed:
-            if callbackMessage:
-                callbackMessage.reply(
-                    f"На {selected_date.strftime('%d.%m')} замовляти пісні не можна: {day_state.reason}"
+            if dialog_manager:
+                await dialog_manager.middleware_data["bot"].send_message(
+                    chat_id=dialog_manager.event.from_user.id,
+                    text=f"На {selected_date.strftime('%d.%m')} замовляти пісні не можна: {day_state.reason}",
                 )
 
             return []
@@ -253,7 +254,7 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, callbackMessage: Message 
     return ethers
 
 
-async def get_data(callback: CallbackQuery, dialog_manager: DialogManager, **kwargs):
+async def get_data(dialog_manager: DialogManager, **kwargs):
     uow = dialog_manager.middleware_data["uow"]
     audio = MediaAttachment(
         ContentType.AUDIO,
@@ -261,7 +262,7 @@ async def get_data(callback: CallbackQuery, dialog_manager: DialogManager, **kwa
     )
     days = []
 
-    if len(await get_ethers_by_day(0, uow, callback.message)) > 0:
+    if len(await get_ethers_by_day(0, uow, dialog_manager)) > 0:
         days.append(("Сьогодні", "0"))
 
     if len(await get_ethers_by_day(1, uow)) > 0:
