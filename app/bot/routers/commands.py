@@ -31,7 +31,16 @@ async def help_command(message: Message, dialog_manager: DialogManager):
 
 async def skip(message: Message, uow: UnitOfWork):
     today = datetime.now()
-    order = await uow.orders.find_one(Ether.date == today.date(), Ether.start_time <= today.time(), Ether.cancelled == False, Order.played == False, Order.confirmed == True, options=[joinedload(Order.ether)], order=[Order.decision_timestamp.asc()])
+    order = await uow.orders.find_one(
+        Ether.date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.cancelled == False,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start != None,
+        options=[joinedload(Order.ether)],
+        order=[Order.play_start.desc()],
+    )
 
     if not order:
         return await message.answer("Зараз нічого не грає")
@@ -40,22 +49,28 @@ async def skip(message: Message, uow: UnitOfWork):
         Order.ether_id == order.ether_id,
         Order.played == False,
         Order.confirmed == True,
+        Order.play_start == None,
         order=[Order.decision_timestamp.asc()],
-        offset=1,
     )
     order.played = True
 
-    await uow.flush()
-
     if next_order:
+        next_order.play_start = datetime.now()
         player.play(f"{next_order.url}")
 
+    await uow.flush()
     await message.answer("Трек скіпнуто")
 
 
 async def stop(message: Message, uow: UnitOfWork):
     today = datetime.now()
-    ether = await uow.ethers.find_one(Ether.date == today.date(), Ether.start_time <= today.time(), Ether.cancelled == False, Ether.end_time >= today.time(), options=[selectinload(Ether.orders)])
+    ether = await uow.ethers.find_one(
+        Ether.date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.cancelled == False,
+        Ether.end_time >= today.time(),
+        options=[selectinload(Ether.orders)],
+    )
     for order in ether.orders:
         order.played = True
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Start
@@ -24,17 +24,14 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
 
     current_order = await uow.orders.find_one(
         Order.played == False,
-        (
-            Order.play_start > previous_order.play_start
-            if previous_order
-            else Order.play_start != None
-        ),
-        order=[Order.expected_play_time.asc()],
+        Order.play_start != None,
+        order=[Order.play_start.desc()],
     )
 
     next_order = await uow.orders.find_one(
         Order.played == False,
-        Order.expected_play_time > datetime.now(),
+        Order.play_start == None,
+        Order.expected_play_time > datetime.now() - timedelta(hours=1),
         order=[Order.expected_play_time.asc()],
     )
 

@@ -13,6 +13,9 @@ from app.bot.schemas.confirm import ConfirmOrder
 
 async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
     order = await uow.orders.find_one(Order.id == callback_data.order_id, options=[selectinload(Order.ether)])
+    if order.confirmed:
+        return
+
     if order is None:
         text = callback.message.html_text + "\nОрдер не знайдено"
     else:
@@ -30,6 +33,7 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 Order.ether_id == order.ether_id,
                 Order.played == False,
                 Order.confirmed == True,
+                Order.play_start != None,
                 order=[Order.decision_timestamp.asc()],
             )
 
@@ -62,7 +66,10 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 )
             else:
                 play_time = datetime.now()
-                order.expected_play_time = datetime.now()
+                order.expected_play_time = play_time
+                order.play_start = play_time
+                player.play(order.url)
+
                 play_time_str = play_time.strftime("%H:%M")
 
                 await callback.bot.send_message(
@@ -70,7 +77,6 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
                     f"🕓 Орієнтовно програє: зараз",
                 )
-                player.play(order.url)
         else:
             ether_orders = await uow.orders.find(
                 Order.ether_id == order.ether_id,
