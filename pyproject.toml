@@ -16,11 +16,12 @@ dependencies = [
     "apscheduler>=3.10.4",
     "fastapi>=0.114.0",
     "uvicorn>=0.30.6",
-    "pyngrok>=1.4.0",
+    "ngrok>=1.4.0",
     "redis>=5.0.8",
     "langdetect>=1.0.9",
     "spotipy>=2.24.0",
     "youtube_search_python>=1.6.6",
+    "greenlet==3.1.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"
