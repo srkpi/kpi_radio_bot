@@ -1,0 +1,16 @@
+name: Deployment - Dev
+on:
+  push:
+    branches: [ dev ]
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Build and start
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USERNAME }}
+          password: ${{ secrets.PRODUCTION_PASSWORD }}
+          port: ${{ secrets.PRODUCTION_PORT }}
+          script: ./kpi_radio_bot.sh
