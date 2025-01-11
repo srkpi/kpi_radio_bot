@@ -28,14 +28,6 @@ requires-python = ">= 3.9"
 [tool.poetry]
 package-mode = false
 
-[[tool.poetry.source]]
-name = "piwheels"
-url = "https://www.piwheels.org/simple"
-
-[[tool.poetry.source]]
-name = "pypi"
-url = "https://pypi.org/simple"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
