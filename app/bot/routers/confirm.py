@@ -34,23 +34,27 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 Order.played == False,
                 Order.confirmed == True,
                 Order.play_start != None,
-                order=[Order.decision_timestamp.asc()],
+                order=[Order.play_start.desc()],
             )
 
-            if current_playing:
-                ether_not_played_orders: list[Order] = await uow.orders.find(
-                    Order.ether_id == order.ether_id,
-                    Order.played == False,
-                    Order.confirmed == True,
-                )
+            ether_not_played_orders: list[Order] = await uow.orders.find(
+                Order.ether_id == order.ether_id,
+                Order.played == False,
+                Order.confirmed == True,
+            )
+
+            if current_playing or len(ether_not_played_orders):
                 ether_not_played_orders_len = len(ether_not_played_orders)
 
                 total_duration = sum(o.duration for o in ether_not_played_orders)
-                current_play_start = current_playing.play_start
 
-                if current_play_start:
+                if current_playing and current_playing.play_start:
                     total_duration -= max(
-                        round((current_datetime - current_play_start).total_seconds()),
+                        round(
+                            (
+                                current_datetime - current_playing.play_start
+                            ).total_seconds()
+                        ),
                         0,
                     )
 

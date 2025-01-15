@@ -18,8 +18,6 @@ class Settings(BaseSettings):
     SPOTIPY_CLIENT_ID: SecretStr
     SPOTIPY_CLIENT_SECRET: SecretStr
 
-    GENIUS_API_TOKEN: SecretStr
-
     @property
     def WEBHOOK_URL(self) -> str:
         return f"{self.BASE_URL}webhook"

@@ -83,10 +83,12 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
     except DownloadError:
         return await message.answer("Спробуйте ще раз")
 
-    title = song_name if song_name else info.get("title")
-    language = await get_song_language(title)
+    duration = info.get("duration")
+    if duration > 8 * 60:
+        return await message.answer("Пісня занадто довга!")
 
-    logging.info(f"Song Language: {language}")
+    title = song_name if song_name else info.get("title")
+    language = get_song_language(title)
 
     if language == "ru":
         return await message.answer(
@@ -97,7 +99,7 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
         "title": title,
         "url": youtube_url if is_spotify else url,
         "spotify_url": url if is_spotify else None,
-        "duration": info.get("duration"),
+        "duration": duration,
         "language": language,
     }
 
@@ -145,19 +147,18 @@ async def on_ether_selected(
 
         now = datetime.now()
         if now.date() == ether.date and now.time() > ether.start_time:
-            play_delay = 30 * max((len(ether_orders) - 1), 0)
             if len(ether_orders):
                 current_playing: Order = await uow.orders.find_one(
                     Order.ether_id == ether.id,
                     Order.played == False,
                     Order.confirmed == True,
-                    order=[Order.decision_timestamp.asc()],
+                    Order.play_start != None,
+                    order=[Order.play_start.desc()],
                 )
-                current_play_start = current_playing.play_start
 
-                if current_play_start:
+                if current_playing:
                     total_duration -= max(
-                        round((now - current_play_start).total_seconds()),
+                        round((now - current_playing.play_start).total_seconds()),
                         0,
                     )
 
