@@ -16,7 +16,7 @@ def mpv_log(loglevel, component, message):
 
 class MPVPlayer(mpv.MPV):
     def slow_volume(self):
-        for i in range(0, 110, 10):
+        for i in range(0, 80, 10):
             self.volume = i
             sleep(0.5)
 
