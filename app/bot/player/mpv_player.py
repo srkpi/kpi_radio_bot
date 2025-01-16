@@ -24,7 +24,7 @@ class MPVPlayer(mpv.MPV):
         threading.Thread(target=self.slow_volume, args=(self,))
         super().play(filename)
 
-player = MPVPlayer(ytdl=True, log_handler=mpv_log, input_default_bindings=True, video=False)
+player = MPVPlayer(ytdl=True, log_handler=mpv_log, input_default_bindings=True, video=False, cache=False)
 
 async def get_current_track(async_session):
     today = datetime.now()
