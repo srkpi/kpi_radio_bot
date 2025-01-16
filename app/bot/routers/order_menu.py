@@ -25,7 +25,7 @@ from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
-from app.bot.services.genius import get_song_language
+from app.bot.services.genius import get_song_language, get_language_flag
 from app.bot.services.spotipy import get_track_info
 
 
@@ -201,12 +201,15 @@ async def on_ether_selected(
     await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
 
     language = manager.dialog_data["audio"]["language"]
+    if language:
+        language_prefix = get_language_flag(language) + ' '
+    else:
+        language_prefix = ''
 
     bot: Bot = manager.middleware_data['bot']
 
     spotify_url = manager.dialog_data['audio'].get('spotify_url')
     spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ''
-    language_label = f' [{language}]' if language else ''
 
     if duration and duration > 0:
         minutes = duration // 60
@@ -217,7 +220,7 @@ async def on_ether_selected(
 
     await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"{manager.dialog_data['audio'].get('url')}{spotify_link}{language_label}\n\n"
+        f"{language_prefix}{manager.dialog_data['audio'].get('url')}{spotify_link}\n\n"
         "Замовлення:\n"
         f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n{duration_label}"
         f"🕓 {play_time_str}\n"
