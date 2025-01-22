@@ -1,14 +1,16 @@
 from contextlib import asynccontextmanager
 
 import aiohttp
+from fastapi.responses import JSONResponse
 import ngrok
 from aiogram import Bot, Dispatcher
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import AnyUrl
 
 from app.api.routes.alert import alert_router
 from app.api.routes.webhook import webhook_router
+from app.api.exception_handler import exception_handler
 from app.api.stubs import BotStub, DispatcherStub, SecretStub
 from app.settings import settings
 
@@ -35,6 +37,11 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
             SecretStub: lambda: webhook_secret,
         }
     )
+
+    async def async_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        return await exception_handler(request, exc, bot)
+
+    app.add_exception_handler(Exception, async_exception_handler)
 
     app.add_middleware(
         CORSMiddleware,

@@ -16,6 +16,7 @@ from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
 from aiogram_dialog.widgets.text import Const, Format
 from yt_dlp import YoutubeDL, DownloadError
 
+from app.api.routes.alert import get_alert_state
 from app.bot.consts.ethers import WEEKDAY_ETHERS, WEEKEND_ETHERS
 from app.bot.consts.other import WEEKDAYS
 from app.bot.keyboards.confirm import get_confirm_keyboard
@@ -27,7 +28,6 @@ from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
 from app.bot.services.genius import get_song_language, get_language_flag
 from app.bot.services.spotipy import get_track_info
-
 
 async def audio_input(message: Message, message_input: MessageInput, manager: DialogManager):
     await message.answer("Аудіофайли не підтримуються")
@@ -92,7 +92,7 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
 
     if language == "ru":
         return await message.answer(
-            "Російські пісні замовляти не можна"
+            "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
         )
 
     manager.dialog_data["audio"] = {
@@ -253,7 +253,21 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogMan
 
     if day == 0:
         now = datetime.now().time()
-        return list(filter(lambda x: x["end"] > now, ethers))
+        ether_list = list(filter(lambda x: x["end"] > now, ethers))
+
+        if len(ether_list) == 0:
+            return []
+
+        if await get_alert_state():
+            if dialog_manager:
+                await dialog_manager.middleware_data["bot"].send_message(
+                    chat_id=dialog_manager.event.from_user.id,
+                    text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
+                )
+
+            return ether_list[1:]
+
+        return ether_list
 
     return ethers
 
@@ -294,23 +308,13 @@ async def get_ethers(dialog_manager: DialogManager, **kwargs):
 order_menu = Dialog(
     Window(
         Const(
-            "Що ти хочеш почути?\n"
-            "Скинь посилання на трек із music.youtube.com або Spotify\n"
+            "Чим хочеш порадувати кампус?\n"
+            "Скинь посилання на трек з Youtube Music або Spotify!\n\nПам’ятай — під час повітряної тривоги мовлення не здійснюється."
         ),
-        MessageInput(
-            audio_input,
-            content_types=[ContentType.AUDIO]
-        ),
-        MessageInput(
-            text_input,
-            content_types=[ContentType.TEXT]
-        ),
-        Start(
-            text=Const("Відміна"),
-            id="__main__",
-            state=MainStates.main
-        ),
-        state=OrderStates.input
+        MessageInput(audio_input, content_types=[ContentType.AUDIO]),
+        MessageInput(text_input, content_types=[ContentType.TEXT]),
+        Start(text=Const("Відміна"), id="__main__", state=MainStates.main),
+        state=OrderStates.input,
     ),
     Window(
         Const("Вибери день"),
@@ -320,14 +324,10 @@ order_menu = Dialog(
                 id="day",
                 items="days",
                 item_id_getter=operator.itemgetter(1),
-                on_click=on_day_selected
+                on_click=on_day_selected,
             )
         ),
-        Start(
-            text=Const("Відміна"),
-            id="__main__",
-            state=MainStates.main
-        ),
+        Start(text=Const("Відміна"), id="__main__", state=MainStates.main),
         state=OrderStates.day,
         getter=get_data,
     ),
@@ -338,14 +338,12 @@ order_menu = Dialog(
                 text=Format("{item[name]}"),
                 id="ether",
                 items="ethers",
-                item_id_getter=lambda x: str(x['id']),
-                on_click=on_ether_selected
+                item_id_getter=lambda x: str(x["id"]),
+                on_click=on_ether_selected,
             ),
-            width=2
+            width=2,
         ),
-        Back(
-            text=Const("Назад")
-        ),
+        Back(text=Const("Назад")),
         state=OrderStates.ether,
         getter=get_ethers,
     ),

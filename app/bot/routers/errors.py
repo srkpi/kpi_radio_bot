@@ -7,4 +7,6 @@ async def context_not_found(event: ErrorEvent):
     redis_client.flushdb()
 
     if event.update.message:
-        await event.update.message.answer("Пропишіть /start")
+        await event.update.message.answer(
+            "Лишенько, не впізнав тебе! Пропиши, будь ласка, /start"
+        )

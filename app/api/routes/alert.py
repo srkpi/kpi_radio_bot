@@ -1,9 +1,12 @@
 import asyncio
 from datetime import datetime
-from fastapi import APIRouter
+from aiogram import Bot
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.settings import settings
 from app.api.schemas.alert import RegionAlerts
+from app.api.stubs import BotStub
 from app.bot.models.ether import Ether
 from app.bot.models.order import Order
 from app.bot.player.mpv_player import player
@@ -13,9 +16,11 @@ from app.bot.repositories.uow import UnitOfWork
 
 
 alert_router = APIRouter(prefix="/alert", tags=["Alert webhook"])
+alert_state = {"is_active": False}
+alert_state_lock = asyncio.Lock()
 
 
-async def clear_queue_for_ether(async_session):
+async def clear_queue_alert(async_session):
     today = datetime.now()
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
@@ -37,21 +42,46 @@ async def clear_queue_for_ether(async_session):
                 order.played = True
 
 
+async def set_alert_state(is_active: bool):
+    async with alert_state_lock:
+        alert_state["is_active"] = is_active
+
+
+async def get_alert_state() -> bool:
+    async with alert_state_lock:
+        return alert_state["is_active"]
+
+
 @alert_router.post("")
 async def alert_route(
-    update: RegionAlerts
+    update: RegionAlerts,
+    bot: Bot = Depends(BotStub),
 ) -> JSONResponse:
     print(update)
     if update.region_id == 31:
         if update.status == 'Activate':
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(clear_queue_for_ether(sessionmaker))
+            await set_alert_state(True)
+            await clear_queue_alert(sessionmaker)
 
             player.stop()
             player.play("music/alert.mp3")
+
+            await bot.send_message(
+                text="Повітряна тривога!",
+                chat_id=settings.ADMINS_CHAT_ID,
+                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+            )
         else:
+            await set_alert_state(False)
+
             player.stop()
             player.play("music/all_clear.mp3")
+
+            await bot.send_message(
+                text="Відбій повітряної тривоги!",
+                chat_id=settings.ADMINS_CHAT_ID,
+                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+            )
 
     return JSONResponse(
         status_code=200,

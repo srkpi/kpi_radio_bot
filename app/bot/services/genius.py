@@ -41,6 +41,7 @@ LANGUAGE_FLAGS = {
     "th": "🇹🇭",  # Thai
     "vn": "🇻🇳",  # Vietnamese
     "ph": "🇵🇭",  # Filipino (Philippines flag)
+    "romanized": "🇯🇵",  # Assert that romanized lyrics are Japanese
 }
 
 
