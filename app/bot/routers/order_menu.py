@@ -90,10 +90,10 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
     title = song_name if song_name else info.get("title")
     language = get_song_language(title)
 
-    if language == "ru":
-        return await message.answer(
-            "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
-        )
+    #if language == "ru":
+    #    return await message.answer(
+    #        "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
+    #    )
 
     manager.dialog_data["audio"] = {
         "title": title,
