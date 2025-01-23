@@ -16,3 +16,5 @@ wheels/
 
 certificate.pem
 private.key
+
+.cache

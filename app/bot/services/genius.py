@@ -41,7 +41,7 @@ LANGUAGE_FLAGS = {
     "th": "🇹🇭",  # Thai
     "vn": "🇻🇳",  # Vietnamese
     "ph": "🇵🇭",  # Filipino (Philippines flag)
-    "romanized": "🇯🇵",  # Assert that romanized lyrics are Japanese
+    "romanized": "🇯🇵",  # Assume that romanized lyrics are Japanese
 }
 
 
@@ -50,15 +50,13 @@ def get_song_language(name: str) -> Optional[str]:
     res = requests.get(url)
     if res.status_code != 200:
         if res.status_code == 404:
-            logging.info(f"GENIUS | Song not found: {name}")
-        else:
-            logging.error(f"GENIUS | Error: {res.status_code}. Response: {res.json()}")
+            return logging.info(f"GENIUS | Song: {name}. 404 Not Found")
 
-        return None
+        return logging.error(f"GENIUS | Song: {name}. Error: {res.status_code}. Response: {res.json()}")
 
     language: Optional[str] = res.json().get("language")
 
-    logging.info(f"GENIUS | Song language: {language if language else 'not specified'}")
+    logging.info(f"GENIUS | Song: {name}. Language: {language if language else 'not specified'}")
 
     return language
 

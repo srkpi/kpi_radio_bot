@@ -1,10 +1,10 @@
 import operator
 from datetime import date, datetime, timedelta
+from urllib.parse import urlparse, parse_qs
 from typing import Any
 import re
-import logging
 
-from youtubesearchpython import VideosSearch
+from ytmusicapi import YTMusic
 
 from aiogram import Bot
 from aiogram.enums import ContentType
@@ -14,7 +14,6 @@ from aiogram_dialog.api.entities import MediaAttachment
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
 from aiogram_dialog.widgets.text import Const, Format
-from yt_dlp import YoutubeDL, DownloadError
 
 from app.api.routes.alert import get_alert_state
 from app.bot.consts.ethers import WEEKDAY_ETHERS, WEEKEND_ETHERS
@@ -29,6 +28,61 @@ from app.bot.states.order import OrderStates
 from app.bot.services.genius import get_song_language, get_language_flag
 from app.bot.services.spotipy import get_track_info
 
+ytmusic = YTMusic()
+
+with open("filtered_words.txt", "r", encoding="utf-8") as f:
+    FILTERED_UK_WORDS = set(f.read().splitlines())
+
+
+def detect_language_advanced(title: str) -> str:
+    ukrainian_chars = {"є", "і", "ї"}
+    russian_chars = {"ы", "ъ", "э"}
+
+    if any(char in title for char in ukrainian_chars):
+        return "uk"
+
+    if any(char in title for char in russian_chars):
+        return "ru"
+
+    title_words = set(title.lower().split())
+    if title_words & FILTERED_UK_WORDS:
+        return "uk"
+
+    return "ru"
+
+
+def extract_youtube_video_id(url) -> str | None:
+    patterns = [
+        r"(?:youtube\.com/watch\?v=|music\.youtube\.com/watch\?v=)",  # youtube.com or music.youtube.com
+        r"youtu\.be/",  # youtu.be
+    ]
+
+    parsed_url = urlparse(url)
+
+    if parsed_url.netloc == "youtu.be":
+        return parsed_url.path.strip("/")
+
+    if "youtube.com" in parsed_url.netloc or "music.youtube.com" in parsed_url.netloc:
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get("v", [None])[0]
+
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+
+    return None
+
+
+def remove_brackets(s: str) -> str:
+    s = re.sub(r'\[.*?\]', '', s)
+    s = re.sub(r'\(.*?\)', '', s)
+    s = re.sub(r'\{.*?\}', '', s)
+    s = re.sub(r'\s+', ' ', s)
+
+    return s.strip()
+
+
 async def audio_input(message: Message, message_input: MessageInput, manager: DialogManager):
     await message.answer("Аудіофайли не підтримуються")
 
@@ -36,27 +90,28 @@ async def audio_input(message: Message, message_input: MessageInput, manager: Di
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
     url = re.sub(r'&list=[a-zA-Z0-9]+', '', message.text)
     url = re.sub(r'\?si=[a-zA-Z0-9]+', '', url)
-    song_name = None
     is_spotify = False
 
     if "spotify.com" in url:
         is_spotify = True
         track_info = get_track_info(url)
         if track_info:
-            title = track_info["name"]
+            spotify_title = track_info["name"]
             artist = track_info["artists"][0]["name"]
-            song_name = f"{title} {artist}"
+            song_full_title = f"{spotify_title} {artist}"
 
-            video_search = VideosSearch(song_name, limit=1)
-            video_result = video_search.result()
-            if not video_result["result"]:
+            song_search = ytmusic.search(song_full_title, filter="songs", limit=1)
+            if not len(song_search):
                 return await message.answer(
-                    f"Не вдалося знайти трек {song_name} на YouTube"
+                    f"Не вдалося знайти трек {song_full_title} на YouTube"
                 )
 
-            youtube_url = (
-                "https://www.youtube.com/watch?v=" + video_result["result"][0]["id"]
-            )
+            top_result = song_search[0]
+            title = top_result["title"]
+            duration = top_result["duration_seconds"]
+            video_id = top_result["videoId"]
+
+            title_formatted = remove_brackets(title)
         else:
             return await message.answer("Не вдалося знайти трек у Spotify")
     elif "youtube.com" in url or "youtu.be" in url or "music.youtube.com" in url:
@@ -72,32 +127,41 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
             return await message.answer(
                 "Невірний URL. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
             )
+
+        video_id = extract_youtube_video_id(url)
+        if not video_id:
+            return await message.answer(
+                "Невірний URL. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
+            )
+
+        get_song_result = ytmusic.get_song(video_id)
+        video_details = get_song_result["videoDetails"]
+        title = video_details["title"]
+        duration = int(video_details["lengthSeconds"])
+        author = video_details["author"]
+        song_full_title = remove_brackets(f"{title} {author}")
+        title_formatted = remove_brackets(title)
     else:
         return await message.answer(
             "Невірний URL. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
         )
 
-    try:
-        with YoutubeDL() as ydl:
-            info = ydl.extract_info(youtube_url, download=False, process=False)
-    except DownloadError:
-        return await message.answer("Спробуйте ще раз")
-
-    duration = info.get("duration")
     if duration > 8 * 60:
         return await message.answer("Пісня занадто довга!")
 
-    title = song_name if song_name else info.get("title")
-    language = get_song_language(title)
+    language = get_song_language(song_full_title)
 
-    #if language == "ru":
-    #    return await message.answer(
-    #        "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
-    #    )
+    if language == "ru":
+        language = detect_language_advanced(song_full_title)
+        if language == "ru":
+            return await message.answer(
+                "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
+            )
 
+    youtube_url = f"https://www.youtube.com/watch?v={video_id}"
     manager.dialog_data["audio"] = {
-        "title": title,
-        "url": youtube_url if is_spotify else url,
+        "title": title_formatted,
+        "url": youtube_url,
         "spotify_url": url if is_spotify else None,
         "duration": duration,
         "language": language,
