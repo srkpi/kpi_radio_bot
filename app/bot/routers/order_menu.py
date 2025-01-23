@@ -135,7 +135,10 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
             )
 
         get_song_result = ytmusic.get_song(video_id)
-        video_details = get_song_result["videoDetails"]
+        video_details = get_song_result.get("videoDetails")
+        if not video_details:
+            return await message.answer("На жаль, я не можу програти цю пісню :(")
+
         title = video_details["title"]
         duration = int(video_details["lengthSeconds"])
         author = video_details["author"]
