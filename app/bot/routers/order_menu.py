@@ -316,27 +316,27 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogMan
     else:
         is_weekday = selected_date.weekday() < 6
 
-    ethers = WEEKEND_ETHERS # TODO Remove
+    ethers = WEEKDAY_ETHERS if is_weekday else WEEKEND_ETHERS
 
-    if day == 0:
-        now = datetime.now().time()
-        ether_list = list(filter(lambda x: x["end"] > now, ethers))
+    if day != 0:
+        return ethers
 
-        if len(ether_list) == 0:
-            return []
+    now = datetime.now().time()
+    ether_list = list(filter(lambda x: x["end"] > now, ethers))
 
-        if await get_alert_state():
-            if dialog_manager:
-                await dialog_manager.middleware_data["bot"].send_message(
-                    chat_id=dialog_manager.event.from_user.id,
-                    text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
-                )
+    if len(ether_list) == 0:
+        return []
 
-            return ether_list[1:]
+    if await get_alert_state():
+        if dialog_manager:
+            await dialog_manager.middleware_data["bot"].send_message(
+                chat_id=dialog_manager.event.from_user.id,
+                text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
+            )
 
-        return ether_list
+        return ether_list[1:]
 
-    return ethers
+    return ether_list
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):

@@ -15,11 +15,43 @@ class Scheduler:
         self._scheduler = AsyncIOScheduler()
 
     def start(self) -> None:
-        for ether in WEEKEND_ETHERS: # TODO make dynamically based on is_holiday state
-            self._scheduler.add_job(self.start_ether, 'cron', day_of_week="mon-sat", hour=ether['start'].hour, minute=ether['start'].minute, args=(self._bot, self._async_sessionmaker, ether['start']))
-            self._scheduler.add_job(self.start_ether, 'cron', day_of_week="sun", hour=ether['end'].hour, minute=ether['end'].minute, args=(self._bot, self._async_sessionmaker, ether['end']))
+        for ether in WEEKDAY_ETHERS:
+            self._scheduler.add_job(
+                self.start_ether,
+                "cron",
+                day_of_week="mon-sat",
+                hour=ether["start"].hour,
+                minute=ether["start"].minute,
+                args=(self._bot, self._async_sessionmaker, ether["start"]),
+            )
+            self._scheduler.add_job(
+                self.start_ether,
+                "cron",
+                day_of_week="sun",
+                hour=ether["end"].hour,
+                minute=ether["end"].minute,
+                args=(self._bot, self._async_sessionmaker, ether["end"]),
+            )
 
-        self._scheduler.add_job(self.minute, 'cron', hour=9)
+        for ether in WEEKEND_ETHERS:
+            self._scheduler.add_job(
+                self.start_ether,
+                "cron",
+                day_of_week="sat-sat",
+                hour=ether["start"].hour,
+                minute=ether["start"].minute,
+                args=(self._bot, self._async_sessionmaker, ether["start"]),
+            )
+            self._scheduler.add_job(
+                self.start_ether,
+                "cron",
+                day_of_week="sun",
+                hour=ether["end"].hour,
+                minute=ether["end"].minute,
+                args=(self._bot, self._async_sessionmaker, ether["end"]),
+            )
+
+        self._scheduler.add_job(self.minute, "cron", hour=9)
         self._scheduler.start()
 
     @staticmethod
