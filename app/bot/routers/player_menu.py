@@ -40,6 +40,7 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         Ether.date == today,
         Ether.cancelled == False,
         options=[selectinload(Ether.orders)],
+        order=[Ether.start_time.asc()],
     )
 
     ethers_info = ""

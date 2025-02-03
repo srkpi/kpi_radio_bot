@@ -12,9 +12,9 @@ LANGUAGE_FLAGS = {
     "fr": "🇫🇷",  # French
     "es": "🇪🇸",  # Spanish
     "it": "🇮🇹",  # Italian
-    "jp": "🇯🇵",  # Japanese
+    "ja": "🇯🇵",  # Japanese
     "cn": "🇨🇳",  # Chinese
-    "kr": "🇰🇷",  # Korean
+    "ko": "🇰🇷",  # Korean
     "in": "🇮🇳",  # Hindi (Indian flag)
     "br": "🇧🇷",  # Portuguese (Brazil flag)
     "ar": "🇸🇦",  # Arabic (Saudi Arabia flag)

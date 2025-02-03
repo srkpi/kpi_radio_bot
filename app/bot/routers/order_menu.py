@@ -22,16 +22,19 @@ from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Ether, Order
 from app.bot.models.day_state import DayState
 from app.bot.repositories.uow import UnitOfWork
-from app.settings import settings
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
 from app.bot.services.genius import get_song_language, get_language_flag
 from app.bot.services.spotipy import get_track_info
+from app.settings import settings
 
 ytmusic = YTMusic()
 
 with open("filtered_words.txt", "r", encoding="utf-8") as f:
     FILTERED_UK_WORDS = set(f.read().splitlines())
+
+with open("whitelist.txt", "r", encoding="utf-8") as f:
+    WHITELIST_UK = set(f.read().splitlines())
 
 
 def detect_language_advanced(title: str) -> str:
@@ -45,7 +48,7 @@ def detect_language_advanced(title: str) -> str:
         return "ru"
 
     title_words = set(title.lower().split())
-    if title_words & FILTERED_UK_WORDS:
+    if title_words & FILTERED_UK_WORDS or title_words & WHITELIST_UK:
         return "uk"
 
     return "ru"
@@ -89,7 +92,6 @@ async def audio_input(message: Message, message_input: MessageInput, manager: Di
 
 async def text_input(message: Message, message_input: MessageInput, manager: DialogManager):
     url = re.sub(r'&list=[a-zA-Z0-9]+', '', message.text)
-    url = re.sub(r'\?si=[a-zA-Z0-9]+', '', url)
     is_spotify = False
 
     if "spotify.com" in url:
@@ -376,7 +378,8 @@ order_menu = Dialog(
     Window(
         Const(
             "Чим хочеш порадувати кампус?\n"
-            "Скинь посилання на трек з Youtube Music або Spotify!\n\nПам’ятай — під час повітряної тривоги мовлення не здійснюється."
+            "Скинь посилання на трек з Youtube Music або Spotify!\n\n"
+            "Пам’ятай — під час повітряної тривоги мовлення не здійснюється."
         ),
         MessageInput(audio_input, content_types=[ContentType.AUDIO]),
         MessageInput(text_input, content_types=[ContentType.TEXT]),

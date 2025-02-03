@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ADMINS_CHAT_ID: int = 1568892912
     ADMINS_MODERATION_THREAD_ID: Optional[int]
     ADMINS_BUGS_THREAD_ID: Optional[int]
+    ADMINS_FEEDBACK_THREAD_ID: Optional[int]
 
     BASE_URL: AnyUrl = AnyUrl("http://localhost:8000")
 

@@ -3,6 +3,7 @@ from aiogram_dialog.widgets.kbd import Start, Row
 from aiogram_dialog.widgets.markup.reply_keyboard import ReplyKeyboardFactory
 from aiogram_dialog.widgets.text import Const
 
+from app.bot.states.feedback import FeedbackStates
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
@@ -36,7 +37,7 @@ main_menu = Dialog(
             Start(
                 text=Const("🖌 Зворотній звʼязок"),
                 id="support",
-                state=HelpStates.select
+                state=FeedbackStates.feedback
             ),
             Start(
                 text=Const("⁉️ Допомога"),

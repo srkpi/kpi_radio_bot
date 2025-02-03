@@ -1,6 +1,6 @@
 import io
 from contextlib import redirect_stdout
-from typing import Union, Any
+from typing import Union
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -11,7 +11,6 @@ from aiogram.types import InputFile, BufferedInputFile
 from aiogram_dialog import setup_dialogs
 from aiogram_dialog.api.entities import MediaAttachment
 from aiogram_dialog.manager.message_manager import MessageManager
-from redis.asyncio import Redis
 from yt_dlp import YoutubeDL
 
 from app.bot.middlewares.database import DatabaseMiddleware
@@ -20,6 +19,7 @@ from app.bot.player.mpv_player import player, get_current_track
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
 from app.database import sessionmaker, engine
+from app.redis import redis_connection
 from app.settings import settings
 
 
@@ -68,15 +68,9 @@ class CustomMessageManager(MessageManager):
 
 
 def create_dispatcher() -> Dispatcher:
-    redis: "Redis[Any]" = Redis(
-        host="localhost",
-        port=6379,
-        decode_responses=True
-    )
-
     key_builder = DefaultKeyBuilder(with_destiny=True)
-    storage = RedisStorage(redis, key_builder)
-    events_isolation = RedisEventIsolation(redis, key_builder)
+    storage = RedisStorage(redis_connection, key_builder)
+    events_isolation = RedisEventIsolation(redis_connection, key_builder)
 
     dispatcher = Dispatcher(
         storage=storage,
