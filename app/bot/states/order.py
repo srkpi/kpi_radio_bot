@@ -5,3 +5,4 @@ class OrderStates(StatesGroup):
     input = State()
     day = State()
     ether = State()
+    banned = State()

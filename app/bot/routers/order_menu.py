@@ -9,17 +9,18 @@ from ytmusicapi import YTMusic
 from aiogram import Bot
 from aiogram.enums import ContentType
 from aiogram.types import Message, CallbackQuery
-from aiogram_dialog import Dialog, Window, DialogManager
-from aiogram_dialog.api.entities import MediaAttachment
+from aiogram_dialog import Dialog, ShowMode, Window, DialogManager
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
 from aiogram_dialog.widgets.text import Const, Format
 
 from app.api.routes.alert import get_alert_state
+from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.ethers import WEEKDAY_ETHERS, WEEKEND_ETHERS
 from app.bot.consts.other import WEEKDAYS
 from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Ether, Order
+from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.states.main import MainStates
@@ -119,9 +120,7 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
     elif "youtube.com" in url or "youtu.be" in url or "music.youtube.com" in url:
         split_text = url.split()
         if len(split_text) == 1:
-            if "list=" not in url:
-                youtube_url = url
-            else:
+            if "list=" in url:
                 return await message.answer(
                     "Це посилання на плейлист. Будь ласка, надішліть одне валідне посилання на Spotify, YouTube або YouTube Music."
                 )
@@ -163,10 +162,9 @@ async def text_input(message: Message, message_input: MessageInput, manager: Dia
                 "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
             )
 
-    youtube_url = f"https://www.youtube.com/watch?v={video_id}"
     manager.dialog_data["audio"] = {
         "title": title_formatted,
-        "url": youtube_url,
+        "video_id": video_id,
         "spotify_url": url if is_spotify else None,
         "duration": duration,
         "language": language,
@@ -195,7 +193,11 @@ async def on_ether_selected(
     day = manager.dialog_data['day']
     selected_date = date.today() + timedelta(days=day)
     selected_ether = next(filter(lambda x: x['id'] == int(ether_id), await get_ethers_by_day(day, uow)), None)
-    ether = await uow.ethers.find_one(Ether.date == selected_date, Ether.start_time == selected_ether["start"], Ether.cancelled == False)
+    ether = await uow.ethers.find_one(
+        Ether.ether_date == selected_date,
+        Ether.start_time == selected_ether["start"],
+        Ether.cancelled == False,
+    )
     duration = manager.dialog_data['audio']['duration']
     if ether:
         ether_orders_1 = await uow.orders.find(
@@ -215,7 +217,7 @@ async def on_ether_selected(
         total_duration = sum(o.duration for o in ether_orders)
 
         now = datetime.now()
-        if now.date() == ether.date and now.time() > ether.start_time:
+        if now.date() == ether.ether_date and now.time() > ether.start_time:
             if len(ether_orders):
                 current_playing: Order = await uow.orders.find_one(
                     Order.ether_id == ether.id,
@@ -234,11 +236,13 @@ async def on_ether_selected(
             play_time = now + timedelta(seconds=total_duration)
         else:
             play_delay = 30 * len(ether_orders)
-            play_time = datetime.combine(ether.date, ether.start_time) + timedelta(
-                seconds=total_duration + play_delay
-            )
+            play_time = datetime.combine(
+                ether.ether_date, ether.start_time
+            ) + timedelta(seconds=total_duration + play_delay)
 
-        if play_time + timedelta(seconds=duration) > datetime.combine(ether.date, ether.end_time):
+        if play_time + timedelta(seconds=duration) > datetime.combine(
+            ether.ether_date, ether.end_time
+        ):
             return await callback.message.answer("Пісня не встигне програти до закінчення етеру")
 
         play_time_str = play_time.strftime("%H:%M")
@@ -249,7 +253,7 @@ async def on_ether_selected(
                 name=selected_ether["name"],
                 start_time=start_time,
                 end_time=selected_ether["end"],
-                date=selected_date,
+                ether_date=selected_date,
                 cancelled=False,
             )
         )
@@ -260,12 +264,17 @@ async def on_ether_selected(
         else:
             play_time_str = start_time.strftime("%H:%M")
 
-    order = await uow.orders.create(Order(
-        title=manager.dialog_data['audio']['title'],
-        url=manager.dialog_data['audio'].get('url'),
-        duration=duration,
-        ether=ether
-    ))
+    video_id = manager.dialog_data['audio'].get('video_id')
+    order = await uow.orders.create(
+        Order(
+            title=manager.dialog_data["audio"]["title"],
+            video_id=video_id,
+            duration=duration,
+            ether=ether,
+            ordered_by=callback.from_user.id,
+        )
+    )
+
     await uow.flush()
     await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
 
@@ -278,7 +287,7 @@ async def on_ether_selected(
     bot: Bot = manager.middleware_data['bot']
 
     spotify_url = manager.dialog_data['audio'].get('spotify_url')
-    spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ''
+    spotify_link = f' <a href="{spotify_url}">[Spotify]</a>' if spotify_url else ''
 
     if duration and duration > 0:
         minutes = duration // 60
@@ -287,23 +296,29 @@ async def on_ether_selected(
     else:
         duration_label = ""
 
-    await bot.send_message(
+    youtube_url = f"https://youtube.com/watch?v={video_id}"
+    youtube_music_link = f' <a href="https://music.youtube.com/watch?v={video_id}">[YM]</a>'
+
+    order_message = await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"{language_prefix}{manager.dialog_data['audio'].get('url')}{spotify_link}\n\n"
+        f"{language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
         "Замовлення:\n"
-        f"{WEEKDAYS[ether.date.weekday()]}, {ether.name}\n{duration_label}"
+        f"{WEEKDAYS[ether.ether_date.weekday()]}, {ether.name}\n{duration_label}"
         f"🕓 {play_time_str}\n"
         f"від {callback.from_user.mention_html()}\n",
         reply_markup=get_confirm_keyboard(order.id, callback.from_user.id),
         message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
     )
 
+    order.order_message_id = order_message.message_id
+
+    await uow.flush()
     await manager.done()
 
 
 async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogManager | None = None):
     selected_date = date.today() + timedelta(days=day)
-    day_state = await uow.day_state.find_one(DayState.date == selected_date)
+    day_state = await uow.day_state.find_one(DayState.state_date == selected_date)
     if day_state:
         if day_state.is_closed:
             if dialog_manager:
@@ -343,10 +358,7 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogMan
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
     uow = dialog_manager.middleware_data["uow"]
-    audio = MediaAttachment(
-        ContentType.AUDIO,
-        url=dialog_manager.dialog_data["audio"].get("url")
-    )
+    audio = dialog_manager.dialog_data["audio"]
     days = []
 
     if len(await get_ethers_by_day(0, uow, dialog_manager)) > 0:
@@ -367,12 +379,26 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
     }
 
 
+async def ban_check(dialog_manager: DialogManager, **kwargs):
+    user_id = dialog_manager.event.from_user.id
+    uow: UnitOfWork = dialog_manager.middleware_data["uow"]
+    is_banned = await uow.banned_users.check_exists(
+        BannedUser.user_id == user_id, BannedUser.is_deleted == False
+    )
+
+    if is_banned:
+        raise BannedUserException()
+
+    return {}
+
+
 async def get_ethers(dialog_manager: DialogManager, **kwargs):
     day = dialog_manager.dialog_data['day']
     uow = dialog_manager.middleware_data["uow"]
     ethers = await get_ethers_by_day(day, uow)
 
     return {"ethers": ethers}
+
 
 order_menu = Dialog(
     Window(
@@ -385,6 +411,7 @@ order_menu = Dialog(
         MessageInput(text_input, content_types=[ContentType.TEXT]),
         Start(text=Const("Відміна"), id="__main__", state=MainStates.main),
         state=OrderStates.input,
+        getter=ban_check,
     ),
     Window(
         Const("Вибери день"),

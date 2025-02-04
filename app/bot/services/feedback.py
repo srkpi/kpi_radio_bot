@@ -3,6 +3,8 @@ from aiogram import Bot
 from aiogram.types import Message, MessageEntity, User, UNSET_PARSE_MODE
 from aiogram.exceptions import TelegramBadRequest
 
+from app.bot.models.order import Order
+from app.bot.repositories.uow import UnitOfWork
 from app.redis import redis_connection
 from app.settings import settings
 
@@ -29,6 +31,8 @@ async def store_message_mapping(
             mapping[f"fb:a:{info_message_id}"] = f"{user_id}:{user_message_id}"
         else:
             mapping[f"fb:u:{user_id}:{info_message_id}"] = admin_message_id
+
+    print(mapping)
 
     await redis_connection.mset(mapping)
 
@@ -111,6 +115,63 @@ def adjust_entities_and_message_text(
     return prefix + text, new_entities
 
 
+async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
+    message_text = message.text
+    if not message_text.startswith("/reply"):
+        await message.reply(
+            "Команда /reply бути на початку повідомлення"
+        )
+        return
+
+    reply_message = message.reply_to_message
+    if reply_message is None:
+        await message.reply("Команда /reply має бути реплаєм на повідомлення із замовленням")
+        return
+
+    order_message_id = reply_message.message_id
+    order = await uow.orders.find_one(Order.order_message_id == order_message_id)
+    if order is None:
+        await message.reply(
+            "Команда /reply має бути реплаєм на повідомлення із замовленням"
+        )
+        return
+
+    message_text = message.text
+    stripped_text = (
+        message_text.split(maxsplit=1)[-1] if " " in message_text else ""
+    )
+    if not stripped_text:
+        await message.reply("Додайте текст відповіді після команди /reply")
+        return
+
+    prefix = "📩 Нове повідомлення від модераторів:\n\n"
+    offset = (
+        (len(prefix.encode("utf-16-le")) // 2)
+        - (len(message_text.encode("utf-16-le")) // 2)
+        + (len(stripped_text.encode("utf-16-le")) // 2)
+    )
+
+    new_entities = []
+    entities = message.entities
+    if entities:
+        for entity in entities:
+            if not (entity.offset == 0 and entity.type == "bot_command"):
+                adjusted_entity = entity.model_copy()
+                adjusted_entity.offset += offset
+                new_entities.append(adjusted_entity)
+
+    user_id = order.ordered_by
+    reply_text = prefix + stripped_text
+
+    forwarded_message = await bot.send_message(
+        user_id, reply_text, parse_mode=None, entities=new_entities
+    )
+
+    await store_message_mapping(
+        user_id, forwarded_message.message_id, message.message_id
+    )
+
+
 async def send_feedback(message: Message, bot: Bot):
     user_id = message.from_user.id
     message_id = message.message_id
@@ -180,7 +241,7 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
         )
         await store_message_mapping(
             user_id,
-            reply_message_id,
+            message.message_id,
             forwarded_message.message_id,
         )
         return
@@ -200,7 +261,7 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
 
     await store_message_mapping(
         user_id,
-        reply_message_id,
+        message.message_id,
         forwarded_actual.message_id,
         info_message.message_id,
         True,

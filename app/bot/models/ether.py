@@ -1,7 +1,7 @@
 from datetime import time, date
 from typing import List, TYPE_CHECKING
 
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from app.bot.models.base import Base
 
@@ -15,7 +15,7 @@ class Ether(Base):
     name: Mapped[str]
     start_time: Mapped[time]
     end_time: Mapped[time]
-    date: Mapped[date]
+    ether_date: Mapped[date] = mapped_column(index=True)
     cancelled: Mapped[bool]
 
     orders: Mapped[List["Order"]] = relationship(back_populates='ether')

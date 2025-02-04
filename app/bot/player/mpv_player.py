@@ -16,7 +16,7 @@ def mpv_log(loglevel, component, message):
 
 class MPVPlayer(mpv.MPV):
     def slow_volume(self):
-        for i in range(0, 80, 10):
+        for i in range(0, 110, 10):
             self.volume = i
             sleep(0.5)
 
@@ -30,8 +30,12 @@ async def get_current_track(async_session):
     today = datetime.now()
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
-            ether = await uow.ethers.find_one(Ether.date == today.date(), Ether.start_time <= today.time(),
-                                              Ether.end_time >= today.time(), Ether.cancelled == False)
+            ether = await uow.ethers.find_one(
+                Ether.ether_date == today.date(),
+                Ether.start_time <= today.time(),
+                Ether.end_time >= today.time(),
+                Ether.cancelled == False,
+            )
             print("ETHER:", ether)
             if not ether:
                 return
@@ -43,7 +47,7 @@ async def get_current_track(async_session):
 
             order.play_start = datetime.now()
 
-            return f"{order.url}"
+            return f"https://youtube.com/watch?v={order.video_id}"
 
 
 async def set_latest_track_played(async_session):

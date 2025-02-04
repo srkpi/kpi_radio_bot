@@ -25,7 +25,7 @@ async def clear_queue_alert(async_session):
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
             ether = await uow.ethers.find_one(
-                Ether.date == today.date(),
+                Ether.ether_date == today.date(),
                 Ether.start_time <= today.time(),
                 Ether.end_time >= today.time(),
             )
@@ -59,21 +59,22 @@ async def alert_route(
 ) -> JSONResponse:
     print(update)
     if update.region_id == 31:
+        is_alert = await get_alert_state()
+
         if update.status == 'Activate':
-            await set_alert_state(True)
-            await clear_queue_alert(sessionmaker)
+            if not is_alert:
+                await set_alert_state(True)
+                await clear_queue_alert(sessionmaker)
 
-            player.stop()
-            player.play("music/alert.mp3")
+                player.stop()
+                player.play("music/alert.mp3")
 
-            await bot.send_message(
-                text="Повітряна тривога!",
-                chat_id=settings.ADMINS_CHAT_ID,
-                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-            )
-        else:
-            await set_alert_state(False)
-
+                await bot.send_message(
+                    text="Повітряна тривога!",
+                    chat_id=settings.ADMINS_CHAT_ID,
+                    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+                )
+        elif is_alert:
             player.stop()
             player.play("music/all_clear.mp3")
 

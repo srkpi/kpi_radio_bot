@@ -3,18 +3,19 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram_dialog.api.exceptions import UnknownIntent, OutdatedIntent
 
+from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.actions import Actions
 from app.bot.routers.confirm import confirm_order, decline_order
-from app.bot.routers.errors import context_not_found
+from app.bot.routers.errors import context_not_found, user_is_banned
 from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
-from app.bot.routers.commands import help_command, start, skip, stop, holiday, close, open
+from app.bot.routers.commands import ban, ban_list, help_command, start, skip, stop, holiday, close, open, unban
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
 from app.bot.routers.player_menu import player_menu
 from app.bot.routers.schedule_menu import schedule_menu
 from app.bot.schemas.confirm import ConfirmOrder
-from app.bot.services.feedback import admin_feedback_reply_handler, user_feedback_reply_handler
+from app.bot.services.feedback import admin_feedback_reply_handler, send_reply, user_feedback_reply_handler
 from app.settings import settings
 
 router = Router()
@@ -36,6 +37,32 @@ router.message.register(holiday, Command("holiday"), F.chat.id == settings.ADMIN
 router.message.register(close, Command("close"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(open, Command("open"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(
+    send_reply,
+    Command("reply"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+    F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
+    F.text,
+)
+router.message.register(
+    ban,
+    Command("ban"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+    F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
+    F.text,
+)
+router.message.register(
+    unban,
+    Command("unban"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+    F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
+    F.text,
+)
+router.message.register(
+    ban_list,
+    Command("ban_list"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
     admin_feedback_reply_handler,
     F.chat.id == settings.ADMINS_CHAT_ID,
     F.message_thread_id == settings.ADMINS_FEEDBACK_THREAD_ID,
@@ -53,3 +80,4 @@ router.include_router(private_router)
 
 router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
 router.error.register(context_not_found, ExceptionTypeFilter(OutdatedIntent))
+router.error.register(user_is_banned, ExceptionTypeFilter(BannedUserException))

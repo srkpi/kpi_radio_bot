@@ -44,29 +44,6 @@ async def on_shutdown(bot: Bot) -> None:
     await bot.delete_webhook()
 
 
-class CustomMessageManager(MessageManager):
-    async def get_media_source(
-        self, media: MediaAttachment, bot: Bot,
-    ) -> Union[InputFile, str]:
-        if media.url and "youtube" in media.url:
-            buffer = io.BytesIO()
-
-            ctx = {
-                'extract_audio': True,
-                'format': 'bestaudio',
-                "outtmpl": "-",
-                'logtostderr': True
-            }
-
-            with redirect_stdout(buffer), YoutubeDL(ctx) as ydl:
-                ydl.download([media.url])
-                info = ydl.extract_info(media.url, download=False)
-
-            title = info.get("title", "")
-            return BufferedInputFile(buffer.getvalue(), title)
-        return await super().get_media_source(media, bot)
-
-
 def create_dispatcher() -> Dispatcher:
     key_builder = DefaultKeyBuilder(with_destiny=True)
     storage = RedisStorage(redis_connection, key_builder)
@@ -80,7 +57,7 @@ def create_dispatcher() -> Dispatcher:
     dispatcher.startup.register(on_startup)
     dispatcher.shutdown.register(on_shutdown)
     dispatcher.update.middleware(DatabaseMiddleware(sessionmaker))
-    setup_dialogs(dispatcher, message_manager=CustomMessageManager())
+    setup_dialogs(dispatcher)
 
     dispatcher.include_router(router)
 

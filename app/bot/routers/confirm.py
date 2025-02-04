@@ -24,9 +24,10 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
 
         current_datetime = datetime.now()
         order.decision_timestamp = current_datetime
+        order.decided_by = callback.from_user.id
 
         if (
-            order.ether.date == current_datetime.date()
+            order.ether.ether_date == current_datetime.date()
             and current_datetime.time() > order.ether.start_time
         ):
             current_playing: Order = await uow.orders.find_one(
@@ -72,7 +73,7 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 play_time = datetime.now()
                 order.expected_play_time = play_time
                 order.play_start = play_time
-                player.play(order.url)
+                player.play(f"https://youtube.com/watch?v={order.video_id}")
 
                 play_time_str = play_time.strftime("%H:%M")
 
@@ -94,7 +95,7 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
 
             play_delay = 30 * len(ether_orders)
             play_time = datetime.combine(
-                order.ether.date, order.ether.start_time
+                order.ether.ether_date, order.ether.start_time
             ) + timedelta(seconds=total_duration + play_delay)
             play_time_str = play_time.strftime("%H:%M")
             order.expected_play_time = play_time
@@ -123,12 +124,12 @@ async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
         text = callback.message.html_text + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
         order.confirmed = False
         order.decision_timestamp = datetime.now()
+        order.decided_by = callback.from_user.id
 
+        await uow.flush()
         await callback.bot.send_message(
             callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
         )
-
-    await uow.flush()
 
     if callback.message.caption:
         await callback.message.edit_caption(caption=text)

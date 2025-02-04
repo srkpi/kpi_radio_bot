@@ -37,7 +37,7 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
 
     today = datetime.now().date()
     ethers = await uow.ethers.find(
-        Ether.date == today,
+        Ether.ether_date == today,
         Ether.cancelled == False,
         options=[selectinload(Ether.orders)],
         order=[Ether.start_time.asc()],
