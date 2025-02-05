@@ -56,9 +56,9 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     await change_callback_message_text(callback, text)
                     return
 
-                song_end_time = current_datetime.time() + timedelta(
-                    seconds=order.duration
-                )
+                song_end_time = (
+                    current_datetime + timedelta(seconds=order.duration)
+                ).time()
                 if order_ether.end_time < song_end_time:
                     text = (
                         callback.message.html_text
