@@ -9,18 +9,41 @@ from app.bot.routers.confirm import confirm_order, decline_order
 from app.bot.routers.errors import context_not_found, user_is_banned
 from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
-from app.bot.routers.commands import ban, ban_list, help_command, start, skip, stop, holiday, close, open, unban
+from app.bot.routers.commands import (
+    alert,
+    ban,
+    ban_list,
+    help_command,
+    start,
+    skip,
+    stop,
+    holiday,
+    close,
+    open,
+    stop_alert,
+    stop_all,
+    stop_today,
+    unban,
+)
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
 from app.bot.routers.player_menu import player_menu
 from app.bot.routers.schedule_menu import schedule_menu
 from app.bot.schemas.confirm import ConfirmOrder
-from app.bot.services.feedback import admin_feedback_reply_handler, send_reply, user_feedback_reply_handler
+from app.bot.services.feedback import (
+    admin_feedback_reply_handler,
+    send_reply,
+    user_feedback_reply_handler,
+)
 from app.settings import settings
 
 router = Router()
-router.callback_query.register(confirm_order, ConfirmOrder.filter(F.action == Actions.confirm))
-router.callback_query.register(decline_order, ConfirmOrder.filter(F.action == Actions.decline))
+router.callback_query.register(
+    confirm_order, ConfirmOrder.filter(F.action == Actions.confirm)
+)
+router.callback_query.register(
+    decline_order, ConfirmOrder.filter(F.action == Actions.decline)
+)
 
 private_router = Router()
 private_router.message.filter(F.chat.type == ChatType.PRIVATE)
@@ -33,9 +56,21 @@ private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownInte
 
 router.message.register(skip, Command("skip"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(stop, Command("stop"), F.chat.id == settings.ADMINS_CHAT_ID)
-router.message.register(holiday, Command("holiday"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(
+    stop_today, Command("stop_today"), F.chat.id == settings.ADMINS_CHAT_ID
+)
+router.message.register(
+    stop_all, Command("stop_all"), F.chat.id == settings.ADMINS_CHAT_ID
+)
+router.message.register(
+    holiday, Command("holiday"), F.chat.id == settings.ADMINS_CHAT_ID
+)
 router.message.register(close, Command("close"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(open, Command("open"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(alert, Command("alert"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(
+    stop_alert, Command("stop_alert"), F.chat.id == settings.ADMINS_CHAT_ID
+)
 router.message.register(
     send_reply,
     Command("reply"),
@@ -54,8 +89,6 @@ router.message.register(
     unban,
     Command("unban"),
     F.chat.id == settings.ADMINS_CHAT_ID,
-    F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
-    F.text,
 )
 router.message.register(
     ban_list,

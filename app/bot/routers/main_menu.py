@@ -35,7 +35,7 @@ main_menu = Dialog(
         ),
         Row(
             Start(
-                text=Const("🖌 Зворотній звʼязок"),
+                text=Const("🖌 Зворотний звʼязок"),
                 id="support",
                 state=FeedbackStates.feedback
             ),

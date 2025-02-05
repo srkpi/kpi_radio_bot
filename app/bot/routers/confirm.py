@@ -1,5 +1,5 @@
 import re
-
+import asyncio
 from datetime import datetime, timedelta
 
 from aiogram.types import CallbackQuery
@@ -10,57 +10,139 @@ from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
 
+order_locks: dict[int, asyncio.Lock] = {}
 
-async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
-    order = await uow.orders.find_one(Order.id == callback_data.order_id, options=[selectinload(Order.ether)])
-    if order.confirmed:
+
+async def change_callback_message_text(callback: CallbackQuery, text: str):
+    if callback.message.caption:
+        await callback.message.edit_caption(caption=text)
         return
 
-    if order is None:
-        text = callback.message.html_text + "\nОрдер не знайдено"
-    else:
-        text = callback.message.html_text + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
-        order.confirmed = True
+    await callback.message.edit_text(text)
 
-        current_datetime = datetime.now()
-        order.decision_timestamp = current_datetime
-        order.decided_by = callback.from_user.id
 
-        if (
-            order.ether.ether_date == current_datetime.date()
-            and current_datetime.time() > order.ether.start_time
-        ):
-            current_playing: Order = await uow.orders.find_one(
-                Order.ether_id == order.ether_id,
-                Order.played == False,
-                Order.confirmed == True,
-                Order.play_start != None,
-                order=[Order.play_start.desc()],
+async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
+    order_id = callback_data.order_id
+
+    if order_id not in order_locks:
+        order_locks[order_id] = asyncio.Lock()
+
+    async with order_locks[order_id]:
+        try:
+            order = await uow.orders.find_one(
+                Order.id == order_id, options=[selectinload(Order.ether)]
             )
 
-            ether_not_played_orders: list[Order] = await uow.orders.find(
-                Order.ether_id == order.ether_id,
-                Order.played == False,
-                Order.confirmed == True,
-            )
+            if order is None:
+                text = callback.message.html_text + "\nОрдер не знайдено"
+                await change_callback_message_text(callback, text)
+                return
 
-            if current_playing or len(ether_not_played_orders):
-                ether_not_played_orders_len = len(ether_not_played_orders)
+            if order.decision_timestamp:
+                return
 
-                total_duration = sum(o.duration for o in ether_not_played_orders)
+            order_ether = order.ether
 
-                if current_playing and current_playing.play_start:
-                    total_duration -= max(
-                        round(
-                            (
-                                current_datetime - current_playing.play_start
-                            ).total_seconds()
-                        ),
-                        0,
+            if order_ether.cancelled:
+                text = callback.message.html_text + "\nЕтер більше недоступний"
+                await change_callback_message_text(callback, text)
+                return
+
+            current_datetime = datetime.now()
+
+            if order_ether.ether_date == current_datetime.date():
+                if order_ether.end_time < current_datetime.time():
+                    text = callback.message.html_text + "\nЕтер вже закінчився"
+                    await change_callback_message_text(callback, text)
+                    return
+
+                song_end_time = current_datetime.time() + timedelta(
+                    seconds=order.duration
+                )
+                if order_ether.end_time < song_end_time:
+                    text = (
+                        callback.message.html_text
+                        + "\nПісня не встигне програти до закінчення етеру"
                     )
+                    await change_callback_message_text(callback, text)
+                    return
 
-                play_delay = 30 * (ether_not_played_orders_len - 1)
-                play_time = datetime.now() + timedelta(seconds=total_duration + play_delay)
+            text = callback.message.html_text + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
+            order.confirmed = True
+            order.decision_timestamp = current_datetime
+            order.decided_by = callback.from_user.id
+
+            if (
+                order_ether.ether_date == current_datetime.date()
+                and current_datetime.time() > order_ether.start_time
+            ):
+                current_playing: Order = await uow.orders.find_one(
+                    Order.ether_id == order.ether_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                    Order.play_start != None,
+                    order=[Order.play_start.desc()],
+                )
+
+                ether_not_played_orders: list[Order] = await uow.orders.find(
+                    Order.ether_id == order.ether_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                )
+
+                if current_playing or len(ether_not_played_orders):
+                    ether_not_played_orders_len = len(ether_not_played_orders)
+
+                    total_duration = sum(o.duration for o in ether_not_played_orders)
+
+                    if current_playing and current_playing.play_start:
+                        total_duration -= max(
+                            round(
+                                (
+                                    current_datetime - current_playing.play_start
+                                ).total_seconds()
+                            ),
+                            0,
+                        )
+
+                    play_delay = 30 * (ether_not_played_orders_len - 1)
+                    play_time = datetime.now() + timedelta(seconds=total_duration + play_delay)
+                    play_time_str = play_time.strftime("%H:%M")
+                    order.expected_play_time = play_time
+
+                    await callback.bot.send_message(
+                        callback_data.user_id,
+                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"🕓 Орієнтовно програє: {play_time_str}",
+                    )
+                else:
+                    play_time = datetime.now()
+                    order.expected_play_time = play_time
+                    order.play_start = play_time
+                    player.play(f"https://youtube.com/watch?v={order.video_id}")
+
+                    play_time_str = play_time.strftime("%H:%M")
+
+                    await callback.bot.send_message(
+                        callback_data.user_id,
+                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"🕓 Орієнтовно програє: зараз",
+                    )
+            else:
+                ether_orders = await uow.orders.find(
+                    Order.ether_id == order.ether_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                )
+
+                total_duration = sum(
+                    o.duration for o in ether_orders if o.id != order.id
+                )
+
+                play_delay = 30 * len(ether_orders)
+                play_time = datetime.combine(
+                    order_ether.ether_date, order_ether.start_time
+                ) + timedelta(seconds=total_duration + play_delay)
                 play_time_str = play_time.strftime("%H:%M")
                 order.expected_play_time = play_time
 
@@ -69,69 +151,43 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
                     f"🕓 Орієнтовно програє: {play_time_str}",
                 )
-            else:
-                play_time = datetime.now()
-                order.expected_play_time = play_time
-                order.play_start = play_time
-                player.play(f"https://youtube.com/watch?v={order.video_id}")
 
-                play_time_str = play_time.strftime("%H:%M")
-
-                await callback.bot.send_message(
-                    callback_data.user_id,
-                    f"✅ Твоє замовлення прийнято: {order.title}\n"
-                    f"🕓 Орієнтовно програє: зараз",
-                )
-        else:
-            ether_orders = await uow.orders.find(
-                Order.ether_id == order.ether_id,
-                Order.played == False,
-                Order.confirmed == True,
-            )
-
-            total_duration = sum(
-                o.duration for o in ether_orders if o.id != order.id
-            )
-
-            play_delay = 30 * len(ether_orders)
-            play_time = datetime.combine(
-                order.ether.ether_date, order.ether.start_time
-            ) + timedelta(seconds=total_duration + play_delay)
-            play_time_str = play_time.strftime("%H:%M")
-            order.expected_play_time = play_time
-
-            await callback.bot.send_message(
-                callback_data.user_id,
-                f"✅ Твоє замовлення прийнято: {order.title}\n"
-                f"🕓 Орієнтовно програє: {play_time_str}",
-            )
-
-    await uow.flush()
+            await uow.flush()
+        finally:
+            order_locks.pop(order_id, None)
 
     replaced_time_text = re.sub(r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text)
-
-    if callback.message.caption:
-        await callback.message.edit_caption(caption=replaced_time_text)
-    else:
-        await callback.message.edit_text(replaced_time_text)
+    await change_callback_message_text(callback, replaced_time_text)
 
 
 async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
-    order = await uow.orders.find_one(Order.id == callback_data.order_id)
-    if order is None:
-        text = callback.message.html_text + "\nОрдер не знайдено"
-    else:
-        text = callback.message.html_text + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
-        order.confirmed = False
-        order.decision_timestamp = datetime.now()
-        order.decided_by = callback.from_user.id
+    order_id = callback_data.order_id
 
-        await uow.flush()
-        await callback.bot.send_message(
-            callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
-        )
+    if order_id not in order_locks:
+        order_locks[order_id] = asyncio.Lock()
 
-    if callback.message.caption:
-        await callback.message.edit_caption(caption=text)
-    else:
-        await callback.message.edit_text(text)
+    async with order_locks[order_id]:
+        try:
+            order = await uow.orders.find_one(Order.id == order_id)
+            if order is None:
+                text = callback.message.html_text + "\nОрдер не знайдено"
+                await change_callback_message_text(callback, text)
+                return
+
+            if order.decision_timestamp:
+                return
+
+            text = callback.message.html_text + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
+            order.confirmed = False
+            order.decision_timestamp = datetime.now()
+            order.decided_by = callback.from_user.id
+
+            await uow.flush()
+        finally:
+            order_locks.pop(order_id, None)
+
+    await callback.bot.send_message(
+        callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
+    )
+
+    await change_callback_message_text(callback, text)

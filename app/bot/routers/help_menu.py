@@ -50,7 +50,7 @@ playlist = Const("""
 """)
 
 support = Const("""
-🖌 *Зворотній звʼязок:*
+🖌 *Зворотний звʼязок:*
 
 • Ти завжди можеш написати команді, що думаєш про них і про радіо (звісно, якщо це не порушує кримінальний кодекс України).
 
@@ -62,43 +62,46 @@ support = Const("""
 """)
 
 
-async def get_data(**kwargs):
-    return {
-        "help": [
-            ("📝 Замовлення пісні", "1"),
-            ("❗️ Модерація", "2"),
-            ("⏭ Плейліст", "3"),
-            ("🖌 Зворотній звʼязок", "4"),
-        ]
-    }
+async def get_data(dialog_manager: DialogManager, **kwargs):
+    help_items = [
+        ("📝 Замовлення пісні", "1"),
+        ("❗️ Модерація", "2"),
+        ("⏭ Плейліст", "3"),
+        ("🖌 Зворотний звʼязок", "4"),
+    ]
+
+    selected_id = dialog_manager.dialog_data.get("help_id")
+    filtered_help_items = [item for item in help_items if item[1] != selected_id]
+
+    return {"help": filtered_help_items}
 
 
-async def on_fruit_selected(callback: CallbackQuery, widget: Any,
+async def on_help_menu_selected(callback: CallbackQuery, widget: Any,
                             manager: DialogManager, item_id: str):
     manager.dialog_data["help_id"] = item_id
 
+
 help_menu = Dialog(
     Window(
-        Case({
-            "1": order,
-            "2": moderation,
-            "3": playlist,
-            "4": support,
-            ...: Const("Вибери тему, що тебе цікавить. (Радимо прочитати все)")
-        }, selector=F["dialog_data"]["help_id"]),
+        Case(
+            {
+                "1": order,
+                "2": moderation,
+                "3": playlist,
+                "4": support,
+                ...: Const("Вибери тему, що тебе цікавить. (Радимо прочитати все)"),
+            },
+            selector=F["dialog_data"]["help_id"],
+        ),
         Column(
             Select(
                 Format("{item[0]}"),
                 id="s_help",
                 item_id_getter=operator.itemgetter(1),
                 items="help",
-                on_click=on_fruit_selected,
+                on_click=on_help_menu_selected,
             ),
-            Start(
-                text=Const("Назад"),
-                id="__main__",
-                state=MainStates.main
-            ),
+            Start(text=Const("Назад"), id="__main__", state=MainStates.main),
         ),
         state=HelpStates.select,
         getter=get_data,

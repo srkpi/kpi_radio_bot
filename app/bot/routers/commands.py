@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from aiogram import Bot
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.api.routes.alert import clear_queue_alert, get_alert_state, set_alert_state
 from app.bot.models import Ether, Order
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
@@ -57,6 +58,8 @@ async def skip(message: Message, uow: UnitOfWork):
     )
     order.played = True
 
+    player.stop()
+
     if next_order:
         next_order.play_start = datetime.now()
         player.play(f"https://youtube.com/watch?v={next_order.video_id}")
@@ -81,6 +84,54 @@ async def stop(message: Message, uow: UnitOfWork):
 
     player.stop()
     await message.answer("Чергу зупинено")
+
+
+async def stop_today(message: Message, uow: UnitOfWork):
+    today = datetime.now()
+    ethers = await uow.ethers.find(
+        Ether.ether_date == today.date(),
+        Ether.end_time >= today.time(),
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+
+    for ether in ethers:
+        for order in ether.orders:
+            order.played = True
+
+    await uow.flush()
+
+    player.stop()
+    await message.answer("Чергу зупинено. Всі замовлення на сьогодні видалено!")
+
+
+async def stop_all(message: Message, uow: UnitOfWork):
+    today = datetime.now()
+    today_ethers = await uow.ethers.find(
+        Ether.ether_date == today.date(),
+        Ether.end_time >= today.time(),
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+
+    for ether in today_ethers:
+        for order in ether.orders:
+            order.played = True
+
+    next_days_ethers = await uow.ethers.find(
+        Ether.ether_date > today.date(),
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+
+    for ether in next_days_ethers:
+        for order in ether.orders:
+            order.played = True
+
+    await uow.flush()
+
+    player.stop()
+    await message.answer("Чергу зупинено. Всі замовлення видалено!")
 
 
 async def holiday(message: Message, uow: UnitOfWork):
@@ -154,6 +205,35 @@ async def open(message: Message, uow: UnitOfWork):
     await message.answer("День відкритий до замовлень!")
 
 
+async def alert(message: Message, uow: UnitOfWork):
+    is_alert = await get_alert_state()
+    if is_alert:
+        await message.reply("Наразі вже триває тривога!")
+        return
+
+    await set_alert_state(True)
+    await clear_queue_alert(uow)
+
+    player.stop()
+    player.play("music/alert.mp3")
+
+    await message.reply("Повітряна тривога увімкненна!")
+
+
+async def stop_alert(message: Message, uow: UnitOfWork):
+    is_alert = await get_alert_state()
+    if not is_alert:
+        await message.reply("Тривоги наразі немає!")
+        return
+
+    await set_alert_state(False)
+
+    player.stop()
+    player.play("music/all_clear.mp3")
+
+    await message.reply("Повітряна тривога вимкнена!")
+
+
 async def ban(message: Message, bot: Bot, uow: UnitOfWork):
     reply_message = message.reply_to_message
     if reply_message is None:
@@ -196,16 +276,11 @@ async def ban(message: Message, bot: Bot, uow: UnitOfWork):
         f"Користувач з id <code>{user_id}</code> заблокований!", parse_mode="HTML"
     )
 
+    block_reason = f" Причина блокування: {reason}" if reason else ""
     additional_info = "Ти більше не можеш замовляти пісні. За потреби напиши модераторам, скориставшись функцією зворотнього зв'язку."
-
     try:
         await bot.send_message(
-            user_id,
-            (
-                f"🚫 Тебе забанили! Причина блокування: {reason}\n\n{additional_info}"
-                if reason
-                else f"🚫 Тебе забанили!\n\n{additional_info}"
-            ),
+            user_id, f"🚫 Тебе забанили!{block_reason}\n\n{additional_info}"
         )
     except Exception:
         pass
@@ -261,6 +336,6 @@ async def ban_list(message: Message, uow: UnitOfWork):
         ban_message_url = (
             f"https://t.me/c/{chat_id_formatted}/{thread_id}/{user.ban_message_id}"
         )
-        ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%m-%d-%Y %H:%M")}</a>'
+        ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")

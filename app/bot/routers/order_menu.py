@@ -287,7 +287,7 @@ async def on_ether_selected(
     bot: Bot = manager.middleware_data['bot']
 
     spotify_url = manager.dialog_data['audio'].get('spotify_url')
-    spotify_link = f' <a href="{spotify_url}">[Spotify]</a>' if spotify_url else ''
+    spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ''
 
     if duration and duration > 0:
         minutes = duration // 60
@@ -297,7 +297,7 @@ async def on_ether_selected(
         duration_label = ""
 
     youtube_url = f"https://youtube.com/watch?v={video_id}"
-    youtube_music_link = f' <a href="https://music.youtube.com/watch?v={video_id}">[YM]</a>'
+    youtube_music_link = f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
 
     order_message = await bot.send_message(
         settings.ADMINS_CHAT_ID,

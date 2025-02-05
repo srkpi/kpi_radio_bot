@@ -22,7 +22,7 @@ async def store_message_mapping(
         )
 
     mapping = {
-        f"fb:u:{user_id}:{user_message_id}": f"{admin_message_id}",
+        f"fb:u:{user_id}:{user_message_id}": admin_message_id,
         f"fb:a:{admin_message_id}": f"{user_id}:{user_message_id}",
     }
 
@@ -31,8 +31,6 @@ async def store_message_mapping(
             mapping[f"fb:a:{info_message_id}"] = f"{user_id}:{user_message_id}"
         else:
             mapping[f"fb:u:{user_id}:{info_message_id}"] = admin_message_id
-
-    print(mapping)
 
     await redis_connection.mset(mapping)
 

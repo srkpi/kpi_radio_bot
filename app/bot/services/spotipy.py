@@ -1,4 +1,3 @@
-import re
 import logging
 from spotipy import Spotify, SpotifyClientCredentials
 from app.settings import settings

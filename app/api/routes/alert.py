@@ -20,26 +20,27 @@ alert_state = {"is_active": False}
 alert_state_lock = asyncio.Lock()
 
 
-async def clear_queue_alert(async_session):
+async def clear_queue_alert(uow: UnitOfWork):
     today = datetime.now()
-    async with async_session() as session, session.begin():
-        async with UnitOfWork(session) as uow:
-            ether = await uow.ethers.find_one(
-                Ether.ether_date == today.date(),
-                Ether.start_time <= today.time(),
-                Ether.end_time >= today.time(),
-            )
 
-            if not ether:
-                return
+    ether = await uow.ethers.find_one(
+        Ether.ether_date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.end_time >= today.time(),
+    )
 
-            orders = await uow.orders.find(
-                Order.ether_id == ether.id,
-                Order.played == False,
-            )
+    if not ether:
+        return
 
-            for order in orders:
-                order.played = True
+    orders = await uow.orders.find(
+        Order.ether_id == ether.id,
+        Order.played == False,
+    )
+
+    for order in orders:
+        order.played = True
+
+    await uow.flush()
 
 
 async def set_alert_state(is_active: bool):
@@ -64,7 +65,10 @@ async def alert_route(
         if update.status == 'Activate':
             if not is_alert:
                 await set_alert_state(True)
-                await clear_queue_alert(sessionmaker)
+
+                async with sessionmaker() as session, session.begin():
+                    async with UnitOfWork(session) as uow:
+                        await clear_queue_alert(uow)
 
                 player.stop()
                 player.play("music/alert.mp3")
@@ -75,6 +79,8 @@ async def alert_route(
                     message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
                 )
         elif is_alert:
+            await set_alert_state(False)
+
             player.stop()
             player.play("music/all_clear.mp3")
 
