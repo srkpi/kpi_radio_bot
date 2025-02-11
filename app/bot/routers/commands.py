@@ -1,6 +1,6 @@
-import pandas as pd
-import sqlite3
-import io
+#import pandas as pd
+#import sqlite3
+#import io
 
 from datetime import datetime
 
@@ -351,25 +351,26 @@ async def ban_list(message: Message, uow: UnitOfWork):
 
 
 async def send_database(message: Message, uow: UnitOfWork):
-    await uow.flush()
+    pass
+    # await uow.flush()
 
-    conn = sqlite3.connect("radio.db")
-    cursor = conn.cursor()
+    # conn = sqlite3.connect("radio.db")
+    # cursor = conn.cursor()
 
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [row[0] for row in cursor.fetchall()]
+    # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    # tables = [row[0] for row in cursor.fetchall()]
 
-    buffer = io.BytesIO()
+    # buffer = io.BytesIO()
 
-    with pd.ExcelWriter(buffer) as writer:
-        for table in tables:
-            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-            df.to_excel(writer, sheet_name=table, index=False)
+    # with pd.ExcelWriter(buffer) as writer:
+    #     for table in tables:
+    #         df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+    #         df.to_excel(writer, sheet_name=table, index=False)
 
-    conn.close()
+    # conn.close()
 
-    buffer.seek(0)
+    # buffer.seek(0)
 
-    await message.reply_document(
-        document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
-    )
+    # await message.reply_document(
+    #     document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
+    # )
