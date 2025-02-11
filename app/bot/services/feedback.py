@@ -88,22 +88,37 @@ def adjust_entities_and_message_text(
     user: Optional[User] = None,
 ):
     full_name = user.full_name if user else ""
-    prefix_length = len(prefix.encode("utf-16-le")) // 2
     full_name_length = len(full_name.encode("utf-16-le")) // 2
-    if user and user.username:
-        user_link_entity = MessageEntity(
-            type="text_mention",
-            offset=prefix_length,
-            length=full_name_length,
-            user=user,
+
+    new_entities = []
+
+    if user:
+        new_entities.append(
+            MessageEntity(
+                type="code",
+                offset=len(prefix.encode("utf-16-le")) // 2,
+                length=full_name_length,
+            )
         )
-    else:
-        user_link_entity = None
 
-    prefix += full_name + ":\n\n"
-    entity_offset = prefix_length + full_name_length + 3
+        prefix += full_name
 
-    new_entities = [user_link_entity] if user_link_entity else []
+        username = user.username
+        if username:
+            new_entities.append(
+                MessageEntity(
+                    type="url",
+                    offset=(len(prefix.encode("utf-16-le")) // 2) + 2,
+                    length=len(username) + 1,
+                    url=f"https://t.me/{username}",
+                )
+            )
+
+            prefix += f" (@{username})"
+
+    prefix += ":\n\n"
+    entity_offset = len(prefix.encode("utf-16-le")) // 2
+
     if entities:
         for entity in entities:
             adjusted_entity = entity.model_copy()

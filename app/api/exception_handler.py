@@ -9,6 +9,9 @@ from app.settings import settings
 async def exception_handler(
     request: Request, exc: Exception, bot: Bot
 ) -> JSONResponse:
+    if str(exc) == "Telegram server says - Bad Request: MESSAGE_ID_INVALID":
+        return Response(status_code=200)
+
     tb = traceback.extract_tb(exc.__traceback__)
     filtered_tb = [
         line for line in tb if "app" in line.filename

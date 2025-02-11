@@ -14,6 +14,7 @@ from app.bot.routers.commands import (
     ban,
     ban_list,
     help_command,
+    send_database,
     start,
     skip,
     stop,
@@ -82,7 +83,6 @@ router.message.register(
     ban,
     Command("ban"),
     F.chat.id == settings.ADMINS_CHAT_ID,
-    F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
     F.text,
 )
 router.message.register(
@@ -93,6 +93,11 @@ router.message.register(
 router.message.register(
     ban_list,
     Command("ban_list"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    send_database,
+    Command("send_database"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(

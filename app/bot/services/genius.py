@@ -52,7 +52,14 @@ def get_song_language(name: str) -> Optional[str]:
         if res.status_code == 404:
             return logging.info(f"GENIUS | Song: {name}. 404 Not Found")
 
-        return logging.error(f"GENIUS | Song: {name}. Error: {res.status_code}. Response: {res.json()}")
+        try:
+            res_formatted = res.json()
+        except Exception:
+            res_formatted = res.text
+
+        return logging.error(
+            f"GENIUS | Song: {name}. Error: {res.status_code}. Response: {res_formatted}"
+        )
 
     language: Optional[str] = res.json().get("language")
 

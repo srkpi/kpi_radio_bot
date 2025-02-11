@@ -265,6 +265,24 @@ async def on_ether_selected(
             play_time_str = start_time.strftime("%H:%M")
 
     video_id = manager.dialog_data['audio'].get('video_id')
+    same_orders = await uow.orders.find(
+        Order.video_id == video_id,
+        Order.decision_timestamp != None,
+    )
+
+    rating = 0
+    for order in same_orders:
+        if order.confirmed:
+            rating += 1
+        else:
+            rating -= 1
+
+    moderation_flag = ""
+    if rating > 2:
+        moderation_flag = "🟢 "
+    elif rating < -2:
+        moderation_flag = "🔴 "
+
     order = await uow.orders.create(
         Order(
             title=manager.dialog_data["audio"]["title"],
@@ -301,7 +319,7 @@ async def on_ether_selected(
 
     order_message = await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"{language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
+        f"{moderation_flag}{language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
         "Замовлення:\n"
         f"{WEEKDAYS[ether.ether_date.weekday()]}, {ether.name}\n{duration_label}"
         f"🕓 {play_time_str}\n"

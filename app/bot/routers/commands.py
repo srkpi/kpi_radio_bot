@@ -1,9 +1,15 @@
-from datetime import datetime, date
+import pandas as pd
+import sqlite3
+import io
+
+from datetime import datetime
 
 from aiogram import Bot
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 from sqlalchemy.orm import joinedload, selectinload
+
+from aiogram.types import BufferedInputFile
 
 from app.api.routes.alert import clear_queue_alert, get_alert_state, set_alert_state
 from app.bot.models import Ether, Order
@@ -11,6 +17,7 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.services.feedback import get_user_message_id
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.settings import settings
@@ -238,19 +245,21 @@ async def ban(message: Message, bot: Bot, uow: UnitOfWork):
     reply_message = message.reply_to_message
     if reply_message is None:
         await message.reply(
-            "Команда /ban має бути реплаєм на повідомлення із замовленням"
+            "Команда /ban має бути реплаєм на повідомлення із замовленням або на повідомлення фідбеку"
         )
         return
 
-    order_message_id = reply_message.message_id
-    order = await uow.orders.find_one(Order.order_message_id == order_message_id)
-    if order is None:
-        await message.reply(
-            "Команда /ban має бути реплаєм на повідомлення із замовленням"
-        )
-        return
+    reply_message_id = reply_message.message_id
+    user_id, _ = await get_user_message_id(reply_message_id)
+    if user_id is None:
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Команда /ban має бути реплаєм на повідомлення із замовленням або на повідомлення фідбеку"
+            )
+            return
 
-    user_id = order.ordered_by
+        user_id = order.ordered_by
 
     is_banned = await uow.banned_users.check_exists(
         BannedUser.user_id == user_id,
@@ -339,3 +348,28 @@ async def ban_list(message: Message, uow: UnitOfWork):
         ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")
+
+
+async def send_database(message: Message, uow: UnitOfWork):
+    await uow.flush()
+
+    conn = sqlite3.connect("radio.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
+
+    buffer = io.BytesIO()
+
+    with pd.ExcelWriter(buffer) as writer:
+        for table in tables:
+            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+            df.to_excel(writer, sheet_name=table, index=False)
+
+    conn.close()
+
+    buffer.seek(0)
+
+    await message.reply_document(
+        document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
+    )

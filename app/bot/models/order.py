@@ -15,7 +15,7 @@ class Order(Base):
 
     title: Mapped[Optional[str]]
 
-    video_id: Mapped[Optional[str]]
+    video_id: Mapped[Optional[str]] = mapped_column(index=True)
     duration: Mapped[int]
 
     confirmed: Mapped[bool] = mapped_column(default=False)
