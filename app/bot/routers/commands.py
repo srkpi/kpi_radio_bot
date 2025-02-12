@@ -1,7 +1,7 @@
-#import pandas as pd
-#import sqlite3
-#import io
+import io
+import sqlite3
 
+from openpyxl import Workbook
 from datetime import datetime
 
 from aiogram import Bot
@@ -351,26 +351,45 @@ async def ban_list(message: Message, uow: UnitOfWork):
 
 
 async def send_database(message: Message, uow: UnitOfWork):
-    pass
-    # await uow.flush()
+    await uow.flush()
 
-    # conn = sqlite3.connect("radio.db")
-    # cursor = conn.cursor()
+    conn = sqlite3.connect("radio.db")
+    cursor = conn.cursor()
 
-    # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    # tables = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
 
-    # buffer = io.BytesIO()
+    buffer = io.BytesIO()
+    wb = Workbook()
+    wb.remove(wb.active)
 
-    # with pd.ExcelWriter(buffer) as writer:
-    #     for table in tables:
-    #         df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-    #         df.to_excel(writer, sheet_name=table, index=False)
+    for table in tables:
+        cursor.execute(f"SELECT * FROM {table}")
+        columns = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
 
-    # conn.close()
+        ws = wb.create_sheet(title=table)
+        ws.append(columns)
 
-    # buffer.seek(0)
+        for row in rows:
+            ws.append(row)
 
-    # await message.reply_document(
-    #     document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
-    # )
+        for col_idx, column in enumerate(columns, 1):
+            col_values = [
+                str(row[col_idx - 1]) for row in rows if row[col_idx - 1] is not None
+            ]
+            max_length = max(
+                [len(str(column))] + [len(val) for val in col_values]
+            )
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = (
+                max_length + 2
+            )
+
+    conn.close()
+
+    wb.save(buffer)
+    buffer.seek(0)
+
+    await message.reply_document(
+        document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
+    )
