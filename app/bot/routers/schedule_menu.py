@@ -5,7 +5,8 @@ from aiogram_dialog.widgets.text import Const
 from app.bot.states.main import MainStates
 from app.bot.states.schedule import ScheduleStates
 
-text = Const("""
+text = Const(
+    """
 *Будні*
 08:00 - 08:30   Ранковий етер
 10:05 - 10:25   Перша перерва
@@ -17,7 +18,8 @@ text = Const("""
 *Неділя та святкові дні*
 9:00 - 18:00   Ранковий етер
 18:00 - 22:00   Вечірній етер
-""")
+"""
+)
 
 schedule_menu = Dialog(
     Window(

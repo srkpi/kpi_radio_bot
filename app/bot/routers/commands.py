@@ -193,7 +193,9 @@ async def close(message: Message, uow: UnitOfWork):
     await uow.flush()
     player.stop()
 
-    await message.answer("День закритий для замовлень! Минула черга на цей день видалена")
+    await message.answer(
+        "День закритий для замовлень! Минула черга на цей день видалена"
+    )
 
 
 async def open(message: Message, uow: UnitOfWork):
@@ -212,14 +214,14 @@ async def open(message: Message, uow: UnitOfWork):
     await message.answer("День відкритий до замовлень!")
 
 
-async def alert(message: Message, uow: UnitOfWork):
+async def alert(message: Message, bot: Bot, uow: UnitOfWork):
     is_alert = await get_alert_state()
     if is_alert:
         await message.reply("Наразі вже триває тривога!")
         return
 
     await set_alert_state(True)
-    await clear_queue_alert(uow)
+    await clear_queue_alert(uow, bot)
 
     player.stop()
     player.play("music/alert.mp3")
@@ -262,8 +264,7 @@ async def ban(message: Message, bot: Bot, uow: UnitOfWork):
         user_id = order.ordered_by
 
     is_banned = await uow.banned_users.check_exists(
-        BannedUser.user_id == user_id,
-        BannedUser.is_deleted == False
+        BannedUser.user_id == user_id, BannedUser.is_deleted == False
     )
 
     if is_banned:
@@ -318,7 +319,9 @@ async def unban(message: Message, bot: Bot, uow: UnitOfWork):
 
     banned_user.is_deleted = True
     await uow.flush()
-    await message.reply(f"Користувач з id <code>{user_id}</code> розблокований!", parse_mode="HTML")
+    await message.reply(
+        f"Користувач з id <code>{user_id}</code> розблокований!", parse_mode="HTML"
+    )
 
     try:
         await bot.send_message(
@@ -374,13 +377,13 @@ async def send_database(message: Message, uow: UnitOfWork):
         for row in rows:
             ws.append(row)
 
+        ws.freeze_panes = "A2"
+
         for col_idx, column in enumerate(columns, 1):
             col_values = [
                 str(row[col_idx - 1]) for row in rows if row[col_idx - 1] is not None
             ]
-            max_length = max(
-                [len(str(column))] + [len(val) for val in col_values]
-            )
+            max_length = max([len(str(column))] + [len(val) for val in col_values])
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = (
                 max_length + 2
             )

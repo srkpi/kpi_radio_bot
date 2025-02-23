@@ -9,6 +9,7 @@ from app.bot.models import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
+from app.bot.services.song_downloader import add_to_download_queue, get_song_path
 
 order_locks: dict[int, asyncio.Lock] = {}
 
@@ -21,7 +22,9 @@ async def change_callback_message_text(callback: CallbackQuery, text: str):
     await callback.message.edit_text(text)
 
 
-async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
+async def confirm_order(
+    callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
+):
     order_id = callback_data.order_id
 
     if order_id not in order_locks:
@@ -67,10 +70,16 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     await change_callback_message_text(callback, text)
                     return
 
-            text = callback.message.html_text + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
+            text = (
+                callback.message.html_text
+                + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
+            )
             order.confirmed = True
             order.decision_timestamp = current_datetime
             order.decided_by = callback.from_user.id
+
+            video_id = order.video_id
+            download_song = True
 
             if (
                 order_ether.ether_date == current_datetime.date()
@@ -106,7 +115,9 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                         )
 
                     play_delay = 30 * (ether_not_played_orders_len - 1)
-                    play_time = datetime.now() + timedelta(seconds=total_duration + play_delay)
+                    play_time = datetime.now() + timedelta(
+                        seconds=total_duration + play_delay
+                    )
                     play_time_str = play_time.strftime("%H:%M")
                     order.expected_play_time = play_time
 
@@ -119,7 +130,13 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                     play_time = datetime.now()
                     order.expected_play_time = play_time
                     order.play_start = play_time
-                    player.play(f"https://youtube.com/watch?v={order.video_id}")
+
+                    download_song = False
+                    song_path = get_song_path(video_id)
+                    if song_path:
+                        player.play(song_path)
+                    else:
+                        player.play(f"https://youtube.com/watch?v={video_id}")
 
                     play_time_str = play_time.strftime("%H:%M")
 
@@ -153,6 +170,9 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
                 )
 
             await uow.flush()
+
+            if video_id and download_song:
+                await add_to_download_queue(video_id)
         finally:
             order_locks.pop(order_id, None)
 
@@ -160,7 +180,9 @@ async def confirm_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
     await change_callback_message_text(callback, replaced_time_text)
 
 
-async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork):
+async def decline_order(
+    callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
+):
     order_id = callback_data.order_id
 
     if order_id not in order_locks:
@@ -177,7 +199,10 @@ async def decline_order(callback: CallbackQuery, callback_data: ConfirmOrder, uo
             if order.decision_timestamp:
                 return
 
-            text = callback.message.html_text + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
+            text = (
+                callback.message.html_text
+                + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
+            )
             order.confirmed = False
             order.decision_timestamp = datetime.now()
             order.decided_by = callback.from_user.id

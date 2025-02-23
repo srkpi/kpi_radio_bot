@@ -25,8 +25,15 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
 
         alarm_token = settings.UKRAINEALARM_TOKEN.get_secret_value()
         if alarm_token:
-            async with aiohttp.ClientSession(headers={"Authorization": settings.UKRAINEALARM_TOKEN.get_secret_value()}) as session:
-                await session.post("https://api.ukrainealarm.com/api/v3/webhook", json={"webHookUrl": f"{settings.BASE_URL}alert"})
+            async with aiohttp.ClientSession(
+                headers={
+                    "Authorization": settings.UKRAINEALARM_TOKEN.get_secret_value()
+                }
+            ) as session:
+                await session.post(
+                    "https://api.ukrainealarm.com/api/v3/webhook",
+                    json={"webHookUrl": f"{settings.BASE_URL}alert"},
+                )
 
         yield
         await dispatcher.emit_shutdown(**workflow_data)

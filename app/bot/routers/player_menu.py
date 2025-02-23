@@ -14,12 +14,10 @@ from sqlalchemy.orm import selectinload
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
-    uow: UnitOfWork = dialog_manager.middleware_data['uow']
+    uow: UnitOfWork = dialog_manager.middleware_data["uow"]
 
     previous_order = await uow.orders.find_one(
-        Order.played == True,
-        Order.play_start != None,
-        order=[Order.play_start.desc()]
+        Order.played == True, Order.play_start != None, order=[Order.play_start.desc()]
     )
 
     current_order = await uow.orders.find_one(
@@ -46,7 +44,9 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
     ethers_info = ""
     for ether in ethers:
         orders_string = ""
-        orders = [order for order in ether.orders if order.expected_play_time is not None]
+        orders = [
+            order for order in ether.orders if order.expected_play_time is not None
+        ]
         orders.sort(key=lambda x: x.expected_play_time)
         for order in orders:
             if order.confirmed and (not order.played or order.play_start):
@@ -62,7 +62,7 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         "previous": previous_order.title if previous_order else "відсутній",
         "current": current_order.title if current_order else "нічого",
         "next": next_order.title if next_order else "відсутній",
-        "ethers": ethers_info
+        "ethers": ethers_info,
     }
 
 
@@ -74,12 +74,8 @@ player_menu = Dialog(
             "⏭ Наступний трек: {{ next }}\n"
             "{{ ethers }}"
         ),
-        Start(
-            text=Const("Назад"),
-            id="__main__",
-            state=MainStates.main
-        ),
+        Start(text=Const("Назад"), id="__main__", state=MainStates.main),
         getter=get_data,
-        state=PlayerStates.now_playing
+        state=PlayerStates.now_playing,
     )
 )

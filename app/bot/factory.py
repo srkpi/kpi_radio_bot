@@ -1,17 +1,9 @@
-import io
-from contextlib import redirect_stdout
-from typing import Union
-
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage, RedisEventIsolation
-from aiogram.types import InputFile, BufferedInputFile
 from aiogram_dialog import setup_dialogs
-from aiogram_dialog.api.entities import MediaAttachment
-from aiogram_dialog.manager.message_manager import MessageManager
-from yt_dlp import YoutubeDL
 
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.bot.models import Base

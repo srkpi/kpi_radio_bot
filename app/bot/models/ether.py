@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class Ether(Base):
-    __tablename__ = 'ethers'
+    __tablename__ = "ethers"
 
     name: Mapped[str]
     start_time: Mapped[time]
@@ -18,4 +18,4 @@ class Ether(Base):
     ether_date: Mapped[date] = mapped_column(index=True)
     cancelled: Mapped[bool]
 
-    orders: Mapped[List["Order"]] = relationship(back_populates='ether')
+    orders: Mapped[List["Order"]] = relationship(back_populates="ether")

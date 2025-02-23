@@ -20,7 +20,7 @@ alert_state = {"is_active": False}
 alert_state_lock = asyncio.Lock()
 
 
-async def clear_queue_alert(uow: UnitOfWork):
+async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
     today = datetime.now()
 
     ether = await uow.ethers.find_one(
@@ -37,10 +37,15 @@ async def clear_queue_alert(uow: UnitOfWork):
         Order.played == False,
     )
 
+    to_notify: list[tuple[str, int]] = []
     for order in orders:
+        to_notify.append((order.title, order.ordered_by, order.expected_play_time))
         order.played = True
 
     await uow.flush()
+
+    for title, user_id in to_notify:
+        await bot.send_message(user_id, f"Замовлення скасоване через тривогу: {title}")
 
 
 async def set_alert_state(is_active: bool):
@@ -62,13 +67,13 @@ async def alert_route(
     if update.region_id == 31:
         is_alert = await get_alert_state()
 
-        if update.status == 'Activate':
+        if update.status == "Activate":
             if not is_alert:
                 await set_alert_state(True)
 
                 async with sessionmaker() as session, session.begin():
                     async with UnitOfWork(session) as uow:
-                        await clear_queue_alert(uow)
+                        await clear_queue_alert(uow, bot)
 
                 player.stop()
                 player.play("music/alert.mp3")
@@ -90,7 +95,4 @@ async def alert_route(
                 message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
             )
 
-    return JSONResponse(
-        status_code=200,
-        content={"ok": True}
-    )
+    return JSONResponse(status_code=200, content={"ok": True})

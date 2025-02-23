@@ -23,36 +23,26 @@ main_menu = Dialog(
         ),
         Row(
             Start(
-                text=Const("🎧 Що грає?"),
-                id="queue",
-                state=PlayerStates.now_playing
+                text=Const("🎧 Що грає?"), id="queue", state=PlayerStates.now_playing
             ),
-            Start(
-                text=Const("📝 Замовити пісню"),
-                id="order",
-                state=OrderStates.input
-            )
+            Start(text=Const("📝 Замовити пісню"), id="order", state=OrderStates.input),
         ),
         Row(
             Start(
                 text=Const("🖌 Зворотний звʼязок"),
                 id="support",
-                state=FeedbackStates.feedback
+                state=FeedbackStates.feedback,
             ),
-            Start(
-                text=Const("⁉️ Допомога"),
-                id="help",
-                state=HelpStates.select
-            ),
+            Start(text=Const("⁉️ Допомога"), id="help", state=HelpStates.select),
             Start(
                 text=Const("⏱ Розклад етерів"),
                 id="schedule",
-                state=ScheduleStates.schedule
+                state=ScheduleStates.schedule,
             ),
         ),
         markup_factory=ReplyKeyboardFactory(
             resize_keyboard=True,
         ),
-        state=MainStates.main
+        state=MainStates.main,
     )
 )

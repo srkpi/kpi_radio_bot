@@ -1,6 +1,12 @@
 from typing import List, Optional
 from aiogram import Bot
-from aiogram.types import Message, MessageEntity, User, UNSET_PARSE_MODE
+from aiogram.types import (
+    Message,
+    MessageEntity,
+    User,
+    ReactionTypeEmoji,
+    UNSET_PARSE_MODE,
+)
 from aiogram.exceptions import TelegramBadRequest
 
 from app.bot.models.order import Order
@@ -131,14 +137,14 @@ def adjust_entities_and_message_text(
 async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
     message_text = message.text
     if not message_text.startswith("/reply"):
-        await message.reply(
-            "Команда /reply бути на початку повідомлення"
-        )
+        await message.reply("Команда /reply бути на початку повідомлення")
         return
 
     reply_message = message.reply_to_message
     if reply_message is None:
-        await message.reply("Команда /reply має бути реплаєм на повідомлення із замовленням")
+        await message.reply(
+            "Команда /reply має бути реплаєм на повідомлення із замовленням"
+        )
         return
 
     order_message_id = reply_message.message_id
@@ -150,9 +156,7 @@ async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
         return
 
     message_text = message.text
-    stripped_text = (
-        message_text.split(maxsplit=1)[-1] if " " in message_text else ""
-    )
+    stripped_text = message_text.split(maxsplit=1)[-1] if " " in message_text else ""
     if not stripped_text:
         await message.reply("Додайте текст відповіді після команди /reply")
         return
@@ -182,6 +186,12 @@ async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
 
     await store_message_mapping(
         user_id, forwarded_message.message_id, message.message_id
+    )
+
+    await bot.set_message_reaction(
+        message.chat.id,
+        message.message_id,
+        [ReactionTypeEmoji(emoji="❤")],
     )
 
 
@@ -282,10 +292,18 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
 
 
 async def admin_feedback_reply_handler(message: Message, bot: Bot):
-    user_id, user_message_id = await get_user_message_id(message.reply_to_message.message_id)
+    user_id, user_message_id = await get_user_message_id(
+        message.reply_to_message.message_id
+    )
 
     if not user_id or not user_message_id:
         return
+
+    await bot.set_message_reaction(
+        message.chat.id,
+        message.message_id,
+        [ReactionTypeEmoji(emoji="❤")],
+    )
 
     if message.text:
         info_text, entities = adjust_entities_and_message_text(
@@ -318,5 +336,5 @@ async def admin_feedback_reply_handler(message: Message, bot: Bot):
         forwarded_message.message_id,
         message.message_id,
         info_message.message_id,
-        False
+        False,
     )

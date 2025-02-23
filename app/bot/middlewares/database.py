@@ -12,10 +12,10 @@ class DatabaseMiddleware(BaseMiddleware):
         self._async_sessionmaker = sessionmaker
 
     async def __call__(
-            self,
-            handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
-            event: TelegramObject,
-            data: Dict[str, Any]
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any],
     ) -> Any:
         async with self._async_sessionmaker() as session, session.begin():
             async with UnitOfWork(session) as uow:

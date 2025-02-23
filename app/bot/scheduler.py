@@ -24,24 +24,8 @@ class Scheduler:
                 minute=ether["start"].minute,
                 args=(self._bot, self._async_sessionmaker, ether["start"]),
             )
-            self._scheduler.add_job(
-                self.start_ether,
-                "cron",
-                day_of_week="sun",
-                hour=ether["end"].hour,
-                minute=ether["end"].minute,
-                args=(self._bot, self._async_sessionmaker, ether["end"]),
-            )
 
         for ether in WEEKEND_ETHERS:
-            self._scheduler.add_job(
-                self.start_ether,
-                "cron",
-                day_of_week="sat-sat",
-                hour=ether["start"].hour,
-                minute=ether["start"].minute,
-                args=(self._bot, self._async_sessionmaker, ether["start"]),
-            )
             self._scheduler.add_job(
                 self.start_ether,
                 "cron",
@@ -56,14 +40,17 @@ class Scheduler:
 
     @staticmethod
     async def minute():
-        player.play('music/minute.mp3')
+        player.play("music/minute.mp3")
 
     @staticmethod
-    async def start_ether(bot: Bot, async_session: async_sessionmaker[AsyncSession], start_time: time):
+    async def start_ether(
+        bot: Bot, async_session: async_sessionmaker[AsyncSession], start_time: time
+    ):
         track = await get_current_track(async_session)
         if track:
             player.play(track)
 
     @staticmethod
-    async def end_ether(bot: Bot, async_session: async_sessionmaker[AsyncSession], end_time: time):
-        ...
+    async def end_ether(
+        bot: Bot, async_session: async_sessionmaker[AsyncSession], end_time: time
+    ): ...

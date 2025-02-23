@@ -24,10 +24,7 @@ class Settings(BaseSettings):
     def WEBHOOK_URL(self) -> str:
         return f"{self.BASE_URL}webhook"
 
-    model_config = SettingsConfigDict(
-        env_file=('stack.env', '.env'),
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=("stack.env", ".env"), extra="ignore")
 
 
 settings = Settings()

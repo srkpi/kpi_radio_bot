@@ -18,3 +18,5 @@ certificate.pem
 private.key
 
 .cache
+
+music/downloads

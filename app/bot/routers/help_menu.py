@@ -10,15 +10,18 @@ from aiogram_dialog.widgets.text import Const, Case, Format
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 
-order = Const("""
+order = Const(
+    """
 📝 *Аби замовити пісню треба:*
 
 • натиснути на кнопку Замовити пісню;
 • надіслати боту посилання на пісню з YouTube Music або Spotify;
 • вибрати день та час для замовлення.
-""")
+"""
+)
 
-moderation = Const("""
+moderation = Const(
+    """
 ✅ В пріоритеті — спокійна музика, яка не відволікатиме від освітнього процесу. Вітаються українські пісні, цінуємо своє!
 
 ⚠️ Будь ласка, не замовляй більше двох треків на етер (окрім вечірнього) та не закидай кучу всього поспіль. 
@@ -40,16 +43,20 @@ moderation = Const("""
 
 ❗️ Пам’ятай, рупора радіо – не колонки у клубі.
 Модератори мають право відхилити трек без пояснення причин :3
-""")
+"""
+)
 
-playlist = Const("""
+playlist = Const(
+    """
 ⏭️ *Плейлист радіо:*
 
 • Дізнатися, що грає зараз, грало до цього або буде грати, можна натиснувши на кнопку "Що грає";
 • Замовлення — одноразове. Якщо твоя пісня з якихось причин не зазвучала — перезамов наступної перерви.
-""")
+"""
+)
 
-support = Const("""
+support = Const(
+    """
 🖌 *Зворотний звʼязок:*
 
 • Ти завжди можеш написати команді, що думаєш про них і про радіо (звісно, якщо це не порушує кримінальний кодекс України).
@@ -59,7 +66,8 @@ support = Const("""
 • В разі наявності пропозицій щодо будь-яких покращень чи вдосконалень — завжди можеш про це повідомити.
 
 • А ще — в нас є чатик @rhub\\_kpi 😉
-""")
+"""
+)
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
@@ -76,8 +84,9 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
     return {"help": filtered_help_items}
 
 
-async def on_help_menu_selected(callback: CallbackQuery, widget: Any,
-                            manager: DialogManager, item_id: str):
+async def on_help_menu_selected(
+    callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str
+):
     manager.dialog_data["help_id"] = item_id
 
 

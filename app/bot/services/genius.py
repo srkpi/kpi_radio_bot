@@ -63,7 +63,9 @@ def get_song_language(name: str) -> Optional[str]:
 
     language: Optional[str] = res.json().get("language")
 
-    logging.info(f"GENIUS | Song: {name}. Language: {language if language else 'not specified'}")
+    logging.info(
+        f"GENIUS | Song: {name}. Language: {language if language else 'not specified'}"
+    )
 
     return language
 

@@ -28,7 +28,12 @@ class UnitOfWork:
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self, exc_type: Type[BaseException], exc_val: BaseException, exc_tb: TracebackType) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Type[BaseException],
+        exc_val: BaseException,
+        exc_tb: TracebackType,
+    ) -> None:
         await self.commit()
 
     async def commit(self) -> None:
