@@ -134,7 +134,7 @@ async def confirm_order(
                     download_song = False
                     song_path = get_song_path(video_id)
                     if song_path:
-                        player.play(song_path)
+                        player.play(str(song_path))
                     else:
                         player.play(f"https://youtube.com/watch?v={video_id}")
 
