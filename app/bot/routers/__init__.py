@@ -13,8 +13,11 @@ from app.bot.routers.commands import (
     alert,
     ban,
     ban_list,
+    cancel,
     help_command,
     send_database,
+    set_temp_volume,
+    set_volume,
     start,
     skip,
     stop,
@@ -56,6 +59,7 @@ private_router.message.register(user_feedback_reply_handler, F.reply_to_message)
 private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
 
 router.message.register(skip, Command("skip"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(cancel, Command("cancel"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(stop, Command("stop"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(
     stop_today, Command("stop_today"), F.chat.id == settings.ADMINS_CHAT_ID
@@ -66,12 +70,22 @@ router.message.register(
 router.message.register(
     holiday, Command("holiday"), F.chat.id == settings.ADMINS_CHAT_ID
 )
+
 router.message.register(close, Command("close"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(open, Command("open"), F.chat.id == settings.ADMINS_CHAT_ID)
+
+router.message.register(
+    set_volume, Command("volume"), F.chat.id == settings.ADMINS_CHAT_ID
+)
+router.message.register(
+    set_temp_volume, Command("temp_volume"), F.chat.id == settings.ADMINS_CHAT_ID
+)
+
 router.message.register(alert, Command("alert"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(
     stop_alert, Command("stop_alert"), F.chat.id == settings.ADMINS_CHAT_ID
 )
+
 router.message.register(
     send_reply,
     Command("reply"),

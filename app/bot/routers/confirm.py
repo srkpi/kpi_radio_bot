@@ -114,7 +114,7 @@ async def confirm_order(
                             0,
                         )
 
-                    play_delay = 30 * (ether_not_played_orders_len - 1)
+                    play_delay = 5 * (ether_not_played_orders_len - 1)
                     play_time = datetime.now() + timedelta(
                         seconds=total_duration + play_delay
                     )
@@ -156,7 +156,7 @@ async def confirm_order(
                     o.duration for o in ether_orders if o.id != order.id
                 )
 
-                play_delay = 30 * len(ether_orders)
+                play_delay = 5 * len(ether_orders)
                 play_time = datetime.combine(
                     order_ether.ether_date, order_ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)

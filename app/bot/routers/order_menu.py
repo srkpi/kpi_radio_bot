@@ -118,6 +118,9 @@ async def text_input(
             duration = top_result["duration_seconds"]
             video_id = top_result["videoId"]
 
+            if not video_id:
+                return await message.answer("На жаль, я не можу програти цю пісню :(")
+
             title_formatted = remove_brackets(title)
         else:
             return await message.answer("Не вдалося знайти трек у Spotify")
@@ -242,7 +245,7 @@ async def on_ether_selected(
 
             play_time = now + timedelta(seconds=total_duration)
         else:
-            play_delay = 30 * len(ether_orders)
+            play_delay = 5 * len(ether_orders)
             play_time = datetime.combine(
                 ether.ether_date, ether.start_time
             ) + timedelta(seconds=total_duration + play_delay)

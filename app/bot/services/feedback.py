@@ -220,10 +220,17 @@ async def send_feedback(message: Message, bot: Bot):
         await store_message_mapping(user_id, message_id, forwarded_message.message_id)
         return
 
+    full_name = message.from_user.full_name
+    username = message.from_user.username
+    username_label = (
+        f' (<a href="https://t.me/{username}">@{username}</a>)' if username else ""
+    )
+
     info_message = await bot.send_message(
         settings.ADMINS_CHAT_ID,
-        f"📩 Нове повідомлення від {message.from_user.mention_html()}:",
+        f"📩 Нове повідомлення від <code>{full_name}</code>{username_label}:",
         message_thread_id=settings.ADMINS_FEEDBACK_THREAD_ID,
+        parse_mode="HTML",
     )
 
     forwarded_message = await message.forward(
@@ -269,11 +276,18 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
         )
         return
 
+    full_name = message.from_user.full_name
+    username = message.from_user.username
+    username_label = (
+        f' (<a href="https://t.me/{username}">@{username}</a>)' if username else ""
+    )
+
     info_message = await send_message_with_reply(
         settings.ADMINS_CHAT_ID,
         admin_message_id,
-        f"📨 Відповідь від {message.from_user.mention_html()}:",
+        f"📨 Відповідь від <code>{full_name}</code>{username_label}:",
         bot,
+        parse_mode="HTML",
     )
 
     forwarded_actual = await message.forward(

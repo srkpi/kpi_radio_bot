@@ -1,9 +1,6 @@
-import asyncio
-import threading
-from datetime import datetime, timedelta
-from time import sleep
-
 import mpv
+import asyncio
+from datetime import datetime, timedelta
 
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
@@ -16,13 +13,22 @@ def mpv_log(loglevel, component, message):
 
 
 class MPVPlayer(mpv.MPV):
-    def slow_volume(self):
-        for i in range(0, 110, 10):
-            self.volume = i
-            sleep(0.5)
+    def __init__(self, *extra_mpv_flags, log_handler=None, start_event_thread=True, loglevel=None, **extra_mpv_opts):
+        super().__init__(*extra_mpv_flags, log_handler=log_handler, start_event_thread=start_event_thread, loglevel=loglevel, **extra_mpv_opts)
+        self.constant_volume = 100
+        self.volume = 100
+
+    def set_volume(self, volume: int):
+        assert 0 <= volume <= 100
+        self.volume = volume
+        self.constant_volume = volume
+
+    def set_temp_volume(self, volume: int):
+        assert 0 <= volume <= 100
+        self.volume = volume
 
     def play(self, filename):
-        threading.Thread(target=self.slow_volume, args=(self,))
+        self.volume = self.constant_volume
         super().play(filename)
 
 

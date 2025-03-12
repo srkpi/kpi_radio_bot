@@ -18,6 +18,7 @@ from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.feedback import get_user_message_id
+from app.bot.services.song_downloader import get_song_path
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.settings import settings
@@ -69,10 +70,67 @@ async def skip(message: Message, uow: UnitOfWork):
 
     if next_order:
         next_order.play_start = datetime.now()
-        player.play(f"https://youtube.com/watch?v={next_order.video_id}")
+        video_id = next_order.video_id
+
+        song_path = get_song_path(video_id)
+        if song_path:
+            player.play(str(song_path))
+        else:
+            player.play(f"https://youtube.com/watch?v={video_id}")
 
     await uow.flush()
     await message.answer("Трек скіпнуто")
+
+
+async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
+    reply_message = message.reply_to_message
+    if reply_message is None:
+        await message.reply(
+            "Команда /cancel має бути реплаєм на повідомлення із замовленням"
+        )
+        return
+
+    reply_message_id = reply_message.message_id
+    order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+    if order is None:
+        await message.reply(
+            "Команда /cancel має бути реплаєм на повідомлення із замовленням"
+        )
+        return
+
+    if order.played:
+        await message.reply("Трек вже програв або вже пропущений")
+        return
+
+    order.played = True
+
+    if order.play_start:
+        next_order = await uow.orders.find_one(
+            Order.ether_id == order.ether_id,
+            Order.played == False,
+            Order.confirmed == True,
+            Order.play_start == None,
+            order=[Order.decision_timestamp.asc()],
+        )
+        order.played = True
+
+        player.stop()
+
+        if next_order:
+            next_order.play_start = datetime.now()
+            video_id = next_order.video_id
+
+            song_path = get_song_path(video_id)
+            if song_path:
+                player.play(str(song_path))
+            else:
+                player.play(f"https://youtube.com/watch?v={video_id}")
+
+    await uow.flush()
+    await message.answer("Трек скасовано")
+    await bot.send_message(
+        order.ordered_by, f"🚫 Трек було скасовано: {order.title}"
+    )
 
 
 async def stop(message: Message, uow: UnitOfWork):
@@ -351,6 +409,54 @@ async def ban_list(message: Message, uow: UnitOfWork):
         ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")
+
+
+async def set_volume(message: Message):
+    volume = get_text_after_command(message)
+
+    if not volume:
+        await message.reply("Невірний формат команди! /volume гучність_цілим_числом")
+        return
+
+    try:
+        volume = int(volume)
+    except ValueError:
+        await message.reply("Невірний формат команди! /unban гучність_цілим_числом")
+        return
+
+    if not 0 <= volume <= 100:
+        await message.reply("Гучність має бути в межах 0-100")
+        return
+
+    player.set_volume(volume)
+
+    await message.reply(f"Гучність успішно встановлена на {volume}%")
+
+
+async def set_temp_volume(message: Message):
+    volume = get_text_after_command(message)
+
+    if not volume:
+        await message.reply(
+            "Невірний формат команди! /temp_volume гучність_цілим_числом"
+        )
+        return
+
+    try:
+        volume = int(volume)
+    except ValueError:
+        await message.reply(
+            "Невірний формат команди! /temp_unban гучність_цілим_числом"
+        )
+        return
+
+    if not 0 <= volume <= 100:
+        await message.reply("Гучність має бути в межах 0-100")
+        return
+
+    player.set_temp_volume(volume)
+
+    await message.reply(f"Гучність для поточної пісні успішно встановлена на {volume}%")
 
 
 async def send_database(message: Message, uow: UnitOfWork):
