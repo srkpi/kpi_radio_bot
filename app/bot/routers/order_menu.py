@@ -164,10 +164,10 @@ async def text_input(
 
     if language == "ru":
         language = detect_language_advanced(song_full_title)
-        if language == "ru":
-            return await message.answer(
-                "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
-            )
+        # if language == "ru":
+        #    return await message.answer(
+        #        "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
+        #    )
 
     manager.dialog_data["audio"] = {
         "title": title_formatted,
