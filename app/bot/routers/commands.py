@@ -2,7 +2,7 @@ import io
 import sqlite3
 
 from openpyxl import Workbook
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import Bot
 from aiogram.types import Message
@@ -18,7 +18,7 @@ from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.feedback import get_user_message_id
-from app.bot.services.song_downloader import get_song_path
+from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.settings import settings
@@ -126,11 +126,25 @@ async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
             else:
                 player.play(f"https://youtube.com/watch?v={video_id}")
 
+    is_same_song_orders_exists = await uow.orders.check_exists(
+        Order.video_id == video_id,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.expected_play_time >= order.expected_play_time - timedelta(hours=1),
+    )
+
+    if not is_same_song_orders_exists and not is_downloading(video_id):
+        delete_song(video_id)
+
     await uow.flush()
     await message.answer("Трек скасовано")
-    await bot.send_message(
-        order.ordered_by, f"🚫 Трек було скасовано: {order.title}"
-    )
+
+    reason = get_text_after_command(message)
+    cancel_text = f"🚫 Трек було скасовано: {order.title}"
+    if reason:
+        cancel_text += "\nПричина: " + reason
+
+    await bot.send_message(order.ordered_by, cancel_text)
 
 
 async def stop(message: Message, uow: UnitOfWork):
@@ -421,7 +435,7 @@ async def set_volume(message: Message):
     try:
         volume = int(volume)
     except ValueError:
-        await message.reply("Невірний формат команди! /unban гучність_цілим_числом")
+        await message.reply("Невірний формат команди! /volume гучність_цілим_числом")
         return
 
     if not 0 <= volume <= 100:
@@ -446,7 +460,7 @@ async def set_temp_volume(message: Message):
         volume = int(volume)
     except ValueError:
         await message.reply(
-            "Невірний формат команди! /temp_unban гучність_цілим_числом"
+            "Невірний формат команди! /temp_volume гучність_цілим_числом"
         )
         return
 

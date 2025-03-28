@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from aiogram_dialog import Dialog, Window, DialogManager
-from aiogram_dialog.widgets.kbd import Start
+from aiogram_dialog.widgets.kbd import Start, Button, Group
 from aiogram_dialog.widgets.text import Jinja, Const
 
 from app.bot.models import Order
@@ -10,32 +10,83 @@ from app.bot.repositories.uow import UnitOfWork
 from app.bot.states.main import MainStates
 from app.bot.states.player import PlayerStates
 
+from aiogram.types import CallbackQuery
+
 from sqlalchemy.orm import selectinload
+
+
+async def next_day_handler(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    selected_date = dialog_manager.dialog_data.get("selected_date")
+    if selected_date:
+        selected_date = datetime.fromisoformat(selected_date).date()
+    else:
+        selected_date = datetime.now().date()
+
+    dialog_manager.dialog_data["selected_date"] = (
+        selected_date + timedelta(days=1)
+    ).isoformat()
+
+    await dialog_manager.update(dialog_manager.dialog_data)
+
+
+async def prev_day_handler(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    selected_date = dialog_manager.dialog_data.get("selected_date")
+    if selected_date:
+        selected_date = datetime.fromisoformat(selected_date).date()
+    else:
+        selected_date = datetime.now().date()
+
+    dialog_manager.dialog_data["selected_date"] = (
+        selected_date - timedelta(days=1)
+    ).isoformat()
+
+    await dialog_manager.update(dialog_manager.dialog_data)
+
+
+async def today_handler(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    await dialog_manager.update({"selected_date": datetime.now().date().isoformat()})
 
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
     uow: UnitOfWork = dialog_manager.middleware_data["uow"]
 
-    previous_order = await uow.orders.find_one(
-        Order.played == True, Order.play_start != None, order=[Order.play_start.desc()]
-    )
-
-    current_order = await uow.orders.find_one(
-        Order.played == False,
-        Order.play_start != None,
-        order=[Order.play_start.desc()],
-    )
-
-    next_order = await uow.orders.find_one(
-        Order.played == False,
-        Order.play_start == None,
-        Order.expected_play_time > datetime.now() - timedelta(hours=1),
-        order=[Order.expected_play_time.asc()],
-    )
-
     today = datetime.now().date()
+    selected_date = dialog_manager.dialog_data.get("selected_date")
+    if selected_date:
+        selected_date = datetime.fromisoformat(selected_date).date()
+    else:
+        selected_date = today
+
+    previous_order = current_order = next_order = None
+
+    if today == selected_date:
+        previous_order = await uow.orders.find_one(
+            Order.played == True,
+            Order.play_start != None,
+            order=[Order.play_start.desc()],
+        )
+
+        current_order = await uow.orders.find_one(
+            Order.played == False,
+            Order.play_start != None,
+            order=[Order.play_start.desc()],
+        )
+
+        next_order = await uow.orders.find_one(
+            Order.played == False,
+            Order.play_start == None,
+            Order.expected_play_time > datetime.now() - timedelta(hours=1),
+            order=[Order.expected_play_time.asc()],
+        )
+
     ethers = await uow.ethers.find(
-        Ether.ether_date == today,
+        Ether.ether_date == selected_date,
         Ether.cancelled == False,
         options=[selectinload(Ether.orders)],
         order=[Ether.start_time.asc()],
@@ -56,25 +107,60 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
             ethers_info += f"\n{ether.name} ({ether.start_time.strftime('%H:%M')}-{ether.end_time.strftime('%H:%M')}):\n{orders_string}"
 
     if not ethers_info:
-        ethers_info = "\nЧерга на сьогодні порожня!"
+        ethers_info = "\nЧерга порожня!"
+
+    if selected_date != today:
+        formatted_date = selected_date.strftime("%d.%m")
+        header = "Історія треків за " + formatted_date
+    else:
+        previous_track = previous_order.title if previous_order else "відсутній"
+        current_track = current_order.title if current_order else "нічого"
+        next_track = next_order.title if next_order else "відсутній"
+        header = (
+            f"⏮ Попередній трек: {previous_track}\n"
+            f"▶️ Зараз грає: {current_track}\n"
+            f"⏭ Наступний трек: {next_track}"
+        )
 
     return {
-        "previous": previous_order.title if previous_order else "відсутній",
-        "current": current_order.title if current_order else "нічого",
-        "next": next_order.title if next_order else "відсутній",
+        "header": header,
         "ethers": ethers_info,
+        "selected_date": selected_date.isoformat(),
+        "today": today.isoformat(),
     }
 
 
+from aiogram_dialog.widgets.kbd import Button
+
 player_menu = Dialog(
     Window(
-        Jinja(
-            "⏮ Попередній трек: {{ previous }}\n"
-            "▶️ Зараз грає: {{ current }}\n"
-            "⏭ Наступний трек: {{ next }}\n"
-            "{{ ethers }}"
+        Jinja("{{ header }}\n{{ ethers }}"),
+        Group(
+            Button(
+                Const("<----"),
+                id="prev_day",
+                when=lambda data, widget, manager: data["today"] is None
+                or datetime.fromisoformat(data["selected_date"]).date()
+                > datetime.fromisoformat(data["today"]).date() - timedelta(days=4),
+                on_click=prev_day_handler,
+            ),
+            Button(
+                Const("----->"),
+                id="next_day",
+                when=lambda data, widget, manager: data["today"] is None
+                or datetime.fromisoformat(data["selected_date"]).date()
+                < datetime.fromisoformat(data["today"]).date() + timedelta(days=4),
+                on_click=next_day_handler,
+            ),
+            width=2,
         ),
-        Start(text=Const("Назад"), id="__main__", state=MainStates.main),
+        Button(
+            Const("Сьогодні"),
+            id="today",
+            when=lambda data, widget, manager: data["selected_date"] != data["today"],
+            on_click=today_handler,
+        ),
+        Start(Const("Назад"), id="__main__", state=MainStates.main),
         getter=get_data,
         state=PlayerStates.now_playing,
     )

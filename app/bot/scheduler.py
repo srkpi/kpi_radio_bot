@@ -1,11 +1,20 @@
-from datetime import time
-
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from app.bot.consts.ethers import WEEKDAY_ETHERS, WEEKEND_ETHERS
+from app.bot.consts.ethers import SCHEDULE
 from app.bot.player.mpv_player import player, get_current_track
+
+
+day_mapping = {
+    "0": "mon",
+    "1": "tue",
+    "2": "wed",
+    "3": "thu",
+    "4": "fri",
+    "5": "sat",
+    "6": "sun",
+}
 
 
 class Scheduler:
@@ -15,25 +24,22 @@ class Scheduler:
         self._scheduler = AsyncIOScheduler()
 
     def start(self) -> None:
-        for ether in WEEKDAY_ETHERS:
-            self._scheduler.add_job(
-                self.start_ether,
-                "cron",
-                day_of_week="mon-sat",
-                hour=ether["start"].hour,
-                minute=ether["start"].minute,
-                args=(self._bot, self._async_sessionmaker, ether["start"]),
-            )
+        for day, ethers in SCHEDULE.items():
+            day_of_week = day_mapping.get(day)
+            if not day_of_week:
+                continue
 
-        for ether in WEEKEND_ETHERS:
-            self._scheduler.add_job(
-                self.start_ether,
-                "cron",
-                day_of_week="sun",
-                hour=ether["end"].hour,
-                minute=ether["end"].minute,
-                args=(self._bot, self._async_sessionmaker, ether["end"]),
-            )
+            for ether in ethers:
+                start_hour, start_minute = map(int, ether["start"].split(":"))
+
+                self._scheduler.add_job(
+                    self.start_ether,
+                    "cron",
+                    day_of_week=day_of_week,
+                    hour=start_hour,
+                    minute=start_minute,
+                    args=(self._async_sessionmaker,),
+                )
 
         self._scheduler.add_job(self.minute, "cron", hour=9)
         self._scheduler.start()
@@ -43,14 +49,7 @@ class Scheduler:
         player.play("music/minute.mp3")
 
     @staticmethod
-    async def start_ether(
-        bot: Bot, async_session: async_sessionmaker[AsyncSession], start_time: time
-    ):
+    async def start_ether(async_session: async_sessionmaker[AsyncSession]):
         track = await get_current_track(async_session)
         if track:
             player.play(track)
-
-    @staticmethod
-    async def end_ether(
-        bot: Bot, async_session: async_sessionmaker[AsyncSession], end_time: time
-    ): ...

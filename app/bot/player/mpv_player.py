@@ -51,7 +51,7 @@ async def get_current_track(async_session):
                 Ether.end_time >= today.time(),
                 Ether.cancelled == False,
             )
-            print("ETHER:", ether)
+
             if not ether:
                 return
 

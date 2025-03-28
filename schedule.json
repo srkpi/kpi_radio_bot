@@ -1,0 +1,288 @@
+{
+    "0": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:15",
+            "is_locked": false
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "1": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:15",
+            "is_locked": false
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "2": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:15",
+            "is_locked": false
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "3": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:00",
+            "is_locked": false
+        },
+        {
+            "name": "Подкасти (14:00-14:15)",
+            "start": "14:00",
+            "end": "14:15",
+            "is_locked": true,
+            "unlock_time": "12:00",
+            "unlock_name": "Третя перерва"
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "18:30",
+            "is_locked": false
+        },
+        {
+            "name": "Подкасти (18:30-19:00)",
+            "start": "18:30",
+            "end": "19:00",
+            "is_locked": true,
+            "unlock_time": "12:00",
+            "unlock_name": "Вечірній етер"
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "19:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "4": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:00",
+            "is_locked": false
+        },
+        {
+            "name": "Подкасти",
+            "start": "14:00",
+            "end": "14:15",
+            "is_locked": true,
+            "unlock_time": "12:00",
+            "unlock_name": "Третя перерва"
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "18:30",
+            "is_locked": false
+        },
+        {
+            "name": "Подкасти",
+            "start": "18:30",
+            "end": "19:00",
+            "is_locked": true,
+            "unlock_time": "12:00",
+            "unlock_name": "Вечірній етер"
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "19:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "5": [
+        {
+            "name": "Ранковий етер",
+            "start": "8:00",
+            "end": "8:30",
+            "is_locked": false
+        },
+        {
+            "name": "Перша перерва",
+            "start": "10:05",
+            "end": "10:25",
+            "is_locked": false
+        },
+        {
+            "name": "Друга перерва",
+            "start": "12:00",
+            "end": "12:20",
+            "is_locked": false
+        },
+        {
+            "name": "Третя перерва",
+            "start": "13:55",
+            "end": "14:15",
+            "is_locked": false
+        },
+        {
+            "name": "Четверта перерва",
+            "start": "15:50",
+            "end": "16:10",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ],
+    "6": [
+        {
+            "name": "Ранковий етер",
+            "start": "9:01",
+            "end": "18:00",
+            "is_locked": false
+        },
+        {
+            "name": "Вечірній етер",
+            "start": "18:00",
+            "end": "22:00",
+            "is_locked": false
+        }
+    ]
+}

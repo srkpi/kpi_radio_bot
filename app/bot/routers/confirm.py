@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from aiogram.types import CallbackQuery
 from sqlalchemy.orm import selectinload
 
+from app.api.routes.alert import get_alert_state
 from app.bot.models import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
@@ -44,6 +45,11 @@ async def confirm_order(
             if order.decision_timestamp:
                 return
 
+            if order.played:
+                text = callback.message.html_text + "\nОрдер скасовано через тривогу"
+                await change_callback_message_text(callback, text)
+                return
+
             order_ether = order.ether
 
             if order_ether.cancelled:
@@ -66,6 +72,14 @@ async def confirm_order(
                     text = (
                         callback.message.html_text
                         + "\nПісня не встигне програти до закінчення етеру"
+                    )
+                    await change_callback_message_text(callback, text)
+                    return
+
+                if await get_alert_state() and song_end_time <= order_ether.end_time:
+                    text = (
+                        callback.message.html_text
+                        + "\nНаразі триває повітряна тривога!"
                     )
                     await change_callback_message_text(callback, text)
                     return

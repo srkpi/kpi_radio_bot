@@ -287,6 +287,7 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
         admin_message_id,
         f"📨 Відповідь від <code>{full_name}</code>{username_label}:",
         bot,
+        settings.ADMINS_FEEDBACK_THREAD_ID,
         parse_mode="HTML",
     )
 

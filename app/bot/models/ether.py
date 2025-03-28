@@ -1,4 +1,4 @@
-from datetime import time, date
+from datetime import date, time
 from typing import List, TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, relationship, mapped_column

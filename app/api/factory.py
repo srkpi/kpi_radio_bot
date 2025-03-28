@@ -15,6 +15,16 @@ from app.api.stubs import BotStub, DispatcherStub, SecretStub
 from app.settings import settings
 
 
+async def update_admins(bot: Bot):
+    admins_ids: list[int] = []
+    admins = await bot.get_chat_administrators(chat_id=settings.ADMINS_CHAT_ID)
+
+    for admin in admins:
+        admins_ids.append(admin.user.id)
+
+    settings.ADMINS = admins_ids
+
+
 def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -34,6 +44,8 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
                     "https://api.ukrainealarm.com/api/v3/webhook",
                     json={"webHookUrl": f"{settings.BASE_URL}alert"},
                 )
+
+        await update_admins(bot)
 
         yield
         await dispatcher.emit_shutdown(**workflow_data)

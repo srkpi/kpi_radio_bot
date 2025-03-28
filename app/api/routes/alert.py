@@ -37,7 +37,7 @@ async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
         Order.played == False,
     )
 
-    to_notify: list[tuple[str, int, datetime]] = []
+    to_notify: list[tuple[str, int]] = []
     for order in orders:
         to_notify.append((order.title, order.ordered_by))
         order.played = True
