@@ -229,6 +229,7 @@ async def on_ether_selected(
         await callback.message.answer("Цей етер більше не доступний")
         return
 
+    user_id = callback.from_user.id
     ether_group = selected_ether_group[1]
     for selected_ether in ether_group:
         ether_start_hour, ether_start_minute = map(
@@ -255,6 +256,15 @@ async def on_ether_selected(
             )
 
             ether_orders = ether_orders_1 + ether_orders_2
+
+            user_orders = 0
+            user_approved_orders = 0
+
+            for ether_order in ether_orders:
+                if ether_order.ordered_by == user_id:
+                    user_orders += 1
+                    if ether_order.confirmed:
+                        user_approved_orders += 1
 
             total_duration = sum(o.duration for o in ether_orders)
 
@@ -289,10 +299,13 @@ async def on_ether_selected(
 
             play_time_str = play_time.strftime("%H:%M")
         else:
-            start_hour, start_minute = map(int, selected_ether["start"].split(':'))
+            user_orders = 0
+            user_approved_orders = 0
+
+            start_hour, start_minute = map(int, selected_ether["start"].split(":"))
             start_time = time(start_hour, start_minute)
 
-            end_hour, end_minute = map(int, selected_ether["end"].split(':'))
+            end_hour, end_minute = map(int, selected_ether["end"].split(":"))
             end_time = time(end_hour, end_minute)
 
             ether = await uow.ethers.create(
@@ -336,7 +349,7 @@ async def on_ether_selected(
                 video_id=video_id,
                 duration=duration,
                 ether=ether,
-                ordered_by=callback.from_user.id,
+                ordered_by=user_id,
             )
         )
 
@@ -372,8 +385,8 @@ async def on_ether_selected(
             "Замовлення:\n"
             f"{WEEKDAYS[ether.ether_date.weekday()]}, {ether.name}\n{duration_label}"
             f"🕓 {play_time_str}\n"
-            f"від {callback.from_user.mention_html()}\n",
-            reply_markup=get_confirm_keyboard(order.id, callback.from_user.id),
+            f"від {callback.from_user.mention_html()} ({user_approved_orders}/{user_orders})\n",
+            reply_markup=get_confirm_keyboard(order.id, user_id),
             message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
         )
 
@@ -466,6 +479,21 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
     audio = dialog_manager.dialog_data["audio"]
     days = []
 
+    def format_day_offset(offset: int) -> str:
+        date = datetime.now().date() + timedelta(days=offset)
+        weekday_ukrainian = {
+            0: "Пн",
+            1: "Вт",
+            2: "Ср",
+            3: "Чт",
+            4: "Пт",
+            5: "Сб",
+            6: "Нд",
+        }
+        weekday_name = weekday_ukrainian[date.weekday()]
+
+        return f"{weekday_name} {date.strftime('%d.%m')}"
+
     if len(await get_ethers_by_day(0, uow, dialog_manager)) > 0:
         days.append(("Сьогодні", "0"))
 
@@ -473,10 +501,10 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         days.append(("Завтра", "1"))
 
     if len(await get_ethers_by_day(2, uow, dialog_manager)) > 0:
-        days.append(("Післязавтра", "2"))
+        days.append((format_day_offset(2), "2"))
 
     if len(await get_ethers_by_day(3, uow, dialog_manager)) > 0:
-        days.append(("Післяпіслязавтра", "3"))
+        days.append((format_day_offset(3), "3"))
 
     return {"audio": audio, "days": days}
 

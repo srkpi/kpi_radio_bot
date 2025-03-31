@@ -43,7 +43,6 @@ class Scheduler:
 
         self._scheduler.add_job(self.minute, "cron", hour=9)
         self._scheduler.start()
-        self.start_ether(self._async_sessionmaker)
 
     @staticmethod
     async def minute():

@@ -215,6 +215,11 @@ async def stop_all(message: Message, uow: UnitOfWork):
 
 async def holiday(message: Message, uow: UnitOfWork):
     today = datetime.now().date()
+
+    if today.weekday() == 6:
+        await message.answer("Неділя завжди вихідний день")
+        return
+
     current_state = await uow.day_state.find_one(DayState.state_date == today)
     if current_state:
         current_state.is_holiday = True
@@ -235,7 +240,32 @@ async def holiday(message: Message, uow: UnitOfWork):
     await uow.flush()
     player.stop()
 
-    await message.answer("День тепер вихідний! Минула черга на цей день видалена")
+    await message.answer("День тепер вихідний! Минула черга на цей день очищена!")
+
+
+async def unholiday(message: Message, uow: UnitOfWork):
+    today = datetime.now().date()
+    current_state = await uow.day_state.find_one(DayState.state_date == today)
+    if current_state is None or not current_state.is_holiday:
+        await message.answer("День не був позначений як вихідний")
+
+    current_state.is_holiday = False
+
+    ethers = await uow.ethers.find(
+        Ether.ether_date == today,
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+
+    for ether in ethers:
+        ether.cancelled = True
+        for order in ether.orders:
+            order.played = True
+
+    await uow.flush()
+    player.stop()
+
+    await message.answer("День тепер не вихідний! Минула черга на цей день очищена!")
 
 
 async def close(message: Message, uow: UnitOfWork):

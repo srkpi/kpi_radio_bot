@@ -28,6 +28,7 @@ from app.bot.routers.commands import (
     stop_all,
     stop_today,
     unban,
+    unholiday,
 )
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
@@ -69,6 +70,9 @@ router.message.register(
 )
 router.message.register(
     holiday, Command("holiday"), F.chat.id == settings.ADMINS_CHAT_ID
+)
+router.message.register(
+    unholiday, Command("unholiday"), F.chat.id == settings.ADMINS_CHAT_ID
 )
 
 router.message.register(close, Command("close"), F.chat.id == settings.ADMINS_CHAT_ID)
