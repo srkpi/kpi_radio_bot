@@ -126,6 +126,7 @@ async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
             else:
                 player.play(f"https://youtube.com/watch?v={video_id}")
 
+    video_id = order.video_id
     is_same_song_orders_exists = await uow.orders.check_exists(
         Order.video_id == video_id,
         Order.played == False,
