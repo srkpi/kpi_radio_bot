@@ -257,14 +257,21 @@ async def on_ether_selected(
 
             ether_orders = ether_orders_1 + ether_orders_2
 
-            user_orders = 0
+            user_ether_orders = await uow.orders.find(
+                Order.ether_id == ether.id,
+                Order.ordered_by == user_id,
+            )
+
+            user_orders = 1
             user_approved_orders = 0
 
-            for ether_order in ether_orders:
-                if ether_order.ordered_by == user_id:
-                    user_orders += 1
-                    if ether_order.confirmed:
-                        user_approved_orders += 1
+            for user_order in user_ether_orders:
+                if user_order.played and not user_order.play_start:
+                    continue
+
+                user_orders += 1
+                if user_order.confirmed:
+                    user_approved_orders += 1
 
             total_duration = sum(o.duration for o in ether_orders)
 
@@ -299,7 +306,7 @@ async def on_ether_selected(
 
             play_time_str = play_time.strftime("%H:%M")
         else:
-            user_orders = 0
+            user_orders = 1
             user_approved_orders = 0
 
             start_hour, start_minute = map(int, selected_ether["start"].split(":"))

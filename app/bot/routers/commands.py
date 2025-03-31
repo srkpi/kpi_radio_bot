@@ -248,6 +248,7 @@ async def unholiday(message: Message, uow: UnitOfWork):
     current_state = await uow.day_state.find_one(DayState.state_date == today)
     if current_state is None or not current_state.is_holiday:
         await message.answer("День не був позначений як вихідний")
+        return
 
     current_state.is_holiday = False
 
