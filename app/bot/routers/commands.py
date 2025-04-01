@@ -24,8 +24,11 @@ from app.bot.states.main import MainStates
 from app.settings import settings
 
 
-def get_text_after_command(message: Message):
+def get_text_after_command(message: Message) -> str | None:
     full_text = message.text
+    if not full_text:
+        return None
+
     command_end_index = full_text.find(" ")
     if command_end_index == -1:
         return None
@@ -503,6 +506,66 @@ async def set_temp_volume(message: Message):
     player.set_temp_volume(volume)
 
     await message.reply(f"Гучність для поточної пісні успішно встановлена на {volume}%")
+
+
+async def send_orders(message: Message, uow: UnitOfWork):
+    await uow.flush()
+
+    conn = sqlite3.connect("radio.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 100;")
+    orders_columns = [desc[0] for desc in cursor.description]
+    orders_rows = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM ethers ORDER BY id DESC LIMIT 100;")
+    ethers_columns = [desc[0] for desc in cursor.description]
+    ethers_rows = cursor.fetchall()
+
+    conn.close()
+
+    buffer = io.BytesIO()
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    orders_ws = wb.create_sheet(title="orders")
+    orders_ws.append(orders_columns)
+    for row in orders_rows:
+        orders_ws.append(row)
+
+    orders_ws.freeze_panes = "A2"
+
+    for col_idx, column in enumerate(orders_columns, 1):
+        col_values = [
+            str(row[col_idx - 1]) for row in orders_rows if row[col_idx - 1] is not None
+        ]
+        max_length = max([len(str(column))] + [len(val) for val in col_values])
+        orders_ws.column_dimensions[
+            orders_ws.cell(row=1, column=col_idx).column_letter
+        ].width = (max_length + 2)
+
+    ethers_ws = wb.create_sheet(title="ethers")
+    ethers_ws.append(ethers_columns)
+    for row in ethers_rows:
+        ethers_ws.append(row)
+
+    ethers_ws.freeze_panes = "A2"
+
+    for col_idx, column in enumerate(ethers_columns, 1):
+        col_values = [
+            str(row[col_idx - 1]) for row in ethers_rows if row[col_idx - 1] is not None
+        ]
+        max_length = max([len(str(column))] + [len(val) for val in col_values])
+        ethers_ws.column_dimensions[
+            ethers_ws.cell(row=1, column=col_idx).column_letter
+        ].width = (max_length + 2)
+
+    wb.save(buffer)
+    buffer.seek(0)
+
+    await message.reply_document(
+        document=BufferedInputFile(file=buffer.getvalue(), filename="orders.xlsx")
+    )
 
 
 async def send_database(message: Message, uow: UnitOfWork):

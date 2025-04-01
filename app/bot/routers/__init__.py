@@ -16,6 +16,7 @@ from app.bot.routers.commands import (
     cancel,
     help_command,
     send_database,
+    send_orders,
     set_temp_volume,
     set_volume,
     start,
@@ -111,6 +112,11 @@ router.message.register(
 router.message.register(
     ban_list,
     Command("ban_list"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    send_orders,
+    Command("send_orders"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(
