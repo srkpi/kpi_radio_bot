@@ -1,4 +1,5 @@
 import mpv
+import random
 import asyncio
 from datetime import datetime, timedelta
 
@@ -13,8 +14,21 @@ def mpv_log(loglevel, component, message):
 
 
 class MPVPlayer(mpv.MPV):
-    def __init__(self, *extra_mpv_flags, log_handler=None, start_event_thread=True, loglevel=None, **extra_mpv_opts):
-        super().__init__(*extra_mpv_flags, log_handler=log_handler, start_event_thread=start_event_thread, loglevel=loglevel, **extra_mpv_opts)
+    def __init__(
+        self,
+        *extra_mpv_flags,
+        log_handler=None,
+        start_event_thread=True,
+        loglevel=None,
+        **extra_mpv_opts,
+    ):
+        super().__init__(
+            *extra_mpv_flags,
+            log_handler=log_handler,
+            start_event_thread=start_event_thread,
+            loglevel=loglevel,
+            **extra_mpv_opts,
+        )
         self.constant_volume = 100
         self.volume = 100
 
@@ -40,6 +54,19 @@ player = MPVPlayer(
     cache=False,
 )
 
+rickroll_state = {"is_rickroll": False}
+rickroll_state_lock = asyncio.Lock()
+
+
+async def set_rickroll_state(is_rickroll: bool):
+    async with rickroll_state_lock:
+        rickroll_state["is_rickroll"] = is_rickroll
+
+
+async def get_rickroll_state() -> bool:
+    async with rickroll_state_lock:
+        return rickroll_state["is_rickroll"]
+
 
 async def get_current_track(async_session):
     today = datetime.now()
@@ -54,6 +81,15 @@ async def get_current_track(async_session):
 
             if not ether:
                 return
+
+            is_rickroll = await get_rickroll_state()
+            if is_rickroll:
+                await set_rickroll_state(False)
+            elif random.random() < 0.49:
+                await set_rickroll_state(True)
+                print("RICKROLL")
+
+                return "music/rickroll.mp3"
 
             order = await uow.orders.find_one(
                 Order.ether_id == ether.id,
@@ -75,6 +111,9 @@ async def get_current_track(async_session):
 
 
 async def set_latest_track_played(async_session):
+    if await get_rickroll_state():
+        return
+
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
             order = await uow.orders.find_one(
