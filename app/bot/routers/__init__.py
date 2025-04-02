@@ -28,6 +28,7 @@ from app.bot.routers.commands import (
     stop_alert,
     stop_all,
     stop_today,
+    traktor,
     unban,
     unholiday,
 )
@@ -56,6 +57,7 @@ private_router.message.filter(F.chat.type == ChatType.PRIVATE)
 
 private_router.message.register(start, CommandStart())
 private_router.message.register(help_command, Command("help"))
+private_router.message.register(traktor, Command("traktor"))
 private_router.message.register(user_feedback_reply_handler, F.reply_to_message)
 
 private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
@@ -122,6 +124,11 @@ router.message.register(
 router.message.register(
     send_database,
     Command("send_database"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    traktor,
+    Command("traktor"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(

@@ -217,6 +217,29 @@ async def stop_all(message: Message, uow: UnitOfWork):
     await message.answer("Чергу зупинено. Всі замовлення видалено!")
 
 
+async def traktor(message: Message, uow: UnitOfWork):
+    today = datetime.now()
+    order = await uow.orders.find_one(
+        Ether.ether_date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.cancelled == False,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start != None,
+        options=[joinedload(Order.ether)],
+        order=[Order.play_start.desc()],
+    )
+
+    if order:
+        order.played = True
+        await uow.flush()
+
+    player.stop()
+    player.play("music/traktor.mp3")
+
+    await message.answer("Трактор їде митися!")
+
+
 async def holiday(message: Message, uow: UnitOfWork):
     today = datetime.now().date()
 
