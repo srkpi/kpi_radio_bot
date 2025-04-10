@@ -134,7 +134,6 @@ router.message.register(
 router.message.register(
     admin_feedback_reply_handler,
     F.chat.id == settings.ADMINS_CHAT_ID,
-    F.message_thread_id == settings.ADMINS_FEEDBACK_THREAD_ID,
     F.reply_to_message,
 )
 
