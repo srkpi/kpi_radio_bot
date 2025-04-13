@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from aiogram.types import BufferedInputFile
 
-from app.api.routes.alert import clear_queue_alert, get_alert_state, set_alert_state
+from app.api.routes.alert import clear_queue_alert
 from app.bot.models import Ether, Order
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
@@ -19,6 +19,7 @@ from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.feedback import get_user_message_id
 from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
+from app.bot.states.alert_state import get_alert_state, set_alert_state
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.settings import settings

@@ -14,7 +14,6 @@ from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
 from aiogram_dialog.widgets.text import Const, Format
 
-from app.api.routes.alert import get_alert_state
 from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.consts.other import WEEKDAYS
@@ -23,6 +22,7 @@ from app.bot.models import Ether, Order
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.states.alert_state import get_alert_state
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
 from app.bot.services.genius import get_song_language, get_language_flag
@@ -469,13 +469,7 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogMan
     if len(ether_list) == 0:
         return []
 
-    if await get_alert_state():
-        if dialog_manager:
-            await dialog_manager.middleware_data["bot"].send_message(
-                chat_id=dialog_manager.event.from_user.id,
-                text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
-            )
-
+    if day == 0 and await get_alert_state():
         return ether_list[1:]
 
     return ether_list
@@ -561,6 +555,12 @@ async def get_ethers(dialog_manager: DialogManager, **kwargs):
     day = dialog_manager.dialog_data["day"]
     uow = dialog_manager.middleware_data["uow"]
     ethers = await get_grouped_ethers(day, uow, dialog_manager)
+
+    if day == 0 and await get_alert_state():
+        await dialog_manager.middleware_data["bot"].send_message(
+            chat_id=dialog_manager.event.from_user.id,
+            text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
+        )
 
     return {"ethers": ethers}
 

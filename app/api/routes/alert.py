@@ -1,23 +1,21 @@
-import asyncio
 from datetime import datetime
 from aiogram import Bot
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.settings import settings
 from app.api.schemas.alert import RegionAlerts
 from app.api.stubs import BotStub
 from app.bot.models.ether import Ether
 from app.bot.models.order import Order
 from app.bot.player.mpv_player import player
+from app.bot.repositories.uow import UnitOfWork
+from app.bot.states.alert_state import get_alert_state, set_alert_state
 
 from app.database import sessionmaker
-from app.bot.repositories.uow import UnitOfWork
+from app.settings import settings
 
 
 alert_router = APIRouter(prefix="/alert", tags=["Alert webhook"])
-alert_state = {"is_active": False}
-alert_state_lock = asyncio.Lock()
 
 
 async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
@@ -46,16 +44,6 @@ async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
 
     for title, user_id in to_notify:
         await bot.send_message(user_id, f"Замовлення скасоване через тривогу: {title}")
-
-
-async def set_alert_state(is_active: bool):
-    async with alert_state_lock:
-        alert_state["is_active"] = is_active
-
-
-async def get_alert_state() -> bool:
-    async with alert_state_lock:
-        return alert_state["is_active"]
 
 
 @alert_router.post("")

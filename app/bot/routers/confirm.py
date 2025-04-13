@@ -5,17 +5,18 @@ from datetime import datetime, timedelta
 from aiogram.types import CallbackQuery
 from sqlalchemy.orm import selectinload
 
-from app.api.routes.alert import get_alert_state
 from app.bot.models import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
 from app.bot.services.song_downloader import add_to_download_queue, get_song_path
+from app.bot.states.alert_state import get_alert_state
 
+order_count_pattern = r"\((\d+)/(\d+)\)$"
 order_locks: dict[int, asyncio.Lock] = {}
 
 
-async def change_callback_message_text(callback: CallbackQuery, text: str):
+async def change_callback_message_text(callback: CallbackQuery, text: str) -> None:
     if callback.message.caption:
         await callback.message.edit_caption(caption=text)
         return
@@ -23,9 +24,16 @@ async def change_callback_message_text(callback: CallbackQuery, text: str):
     await callback.message.edit_text(text)
 
 
+def increment_approved(match: re.Match[str]) -> str:
+    first = int(match.group(1))
+    second = match.group(2)
+
+    return f"({first + 1}/{second})"
+
+
 async def confirm_order(
     callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
-):
+) -> None:
     order_id = callback_data.order_id
 
     if order_id not in order_locks:
@@ -85,7 +93,9 @@ async def confirm_order(
                     return
 
             text = (
-                callback.message.html_text
+                re.sub(
+                    order_count_pattern, increment_approved, callback.message.html_text
+                )
                 + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
             )
             order.confirmed = True
@@ -191,12 +201,13 @@ async def confirm_order(
             order_locks.pop(order_id, None)
 
     replaced_time_text = re.sub(r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text)
+
     await change_callback_message_text(callback, replaced_time_text)
 
 
 async def decline_order(
     callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
-):
+) -> None:
     order_id = callback_data.order_id
 
     if order_id not in order_locks:

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
+from app.bot.states.alert_state import get_alert_state
 from app.database import sessionmaker
 
 
@@ -55,6 +56,9 @@ player = MPVPlayer(
 
 
 async def get_current_track(async_session):
+    if await get_alert_state():
+        return
+
     today = datetime.now()
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
