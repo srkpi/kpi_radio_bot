@@ -1,14 +1,16 @@
-from contextlib import asynccontextmanager
-
 import aiohttp
-from fastapi.responses import JSONResponse
 import ngrok
+import requests
+
 from aiogram import Bot, Dispatcher
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import AnyUrl
 
 from app.api.routes.alert import alert_router
+from app.api.routes.index import index_router
 from app.api.routes.webhook import webhook_router
 from app.api.exception_handler import exception_handler
 from app.api.stubs import BotStub, DispatcherStub, SecretStub
@@ -23,6 +25,17 @@ async def update_admins(bot: Bot):
         admins_ids.append(admin.user.id)
 
     settings.ADMINS = admins_ids
+
+
+def update_monitor_url():
+    url = f"https://uptime.betterstack.com/api/v2/monitors/{settings.UPTIME_MONITOR_ID.get_secret_value()}"
+    headers = {
+        "Authorization": f"Bearer {settings.UPTIME_API_TOKEN.get_secret_value()}",
+        "Content_Type": "application/json",
+    }
+    payload = {"url": str(settings.BASE_URL)}
+
+    requests.request("PATCH", url, headers=headers, json=payload)
 
 
 def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI:
@@ -46,6 +59,7 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
                 )
 
         await update_admins(bot)
+        update_monitor_url()
 
         yield
         await dispatcher.emit_shutdown(**workflow_data)
@@ -74,6 +88,7 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
         allow_headers=["*"],
     )
 
+    app.include_router(index_router)
     app.include_router(webhook_router)
     app.include_router(alert_router)
 

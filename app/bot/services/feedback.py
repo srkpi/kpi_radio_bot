@@ -254,7 +254,7 @@ async def user_feedback_reply_handler(message: Message, bot: Bot):
 
     if message.text:
         user = message.from_user
-        prefix = f"📨 Відповідь від "
+        prefix = "📨 Відповідь від "
         info_text, entities = adjust_entities_and_message_text(
             prefix,
             message.text,

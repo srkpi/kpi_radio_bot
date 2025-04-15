@@ -7,6 +7,14 @@ class Settings(BaseSettings):
     TOKEN: SecretStr
     TELEGRAM_SECRET: SecretStr
 
+    JSON_SILO_KEY: SecretStr
+    JSON_SILO_UUID: SecretStr
+
+    STATISTIC_HEARTBEAT_URL: AnyUrl
+
+    UPTIME_API_TOKEN: SecretStr
+    UPTIME_MONITOR_ID: SecretStr
+
     NGROK_AUTHTOKEN: SecretStr
     UKRAINEALARM_TOKEN: SecretStr
 

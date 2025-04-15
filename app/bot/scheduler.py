@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.player.mpv_player import player, get_current_track
+from app.bot.services.statistic import update_statistic
 
 
 day_mapping = {
@@ -42,10 +43,16 @@ class Scheduler:
                 )
 
         self._scheduler.add_job(self.minute, "cron", hour=9)
+        self._scheduler.add_job(
+            update_statistic,
+            "interval",
+            hours=3,
+            args=(self._async_sessionmaker,),
+        )
         self._scheduler.start()
 
     @staticmethod
-    async def minute():
+    def minute():
         player.play("music/minute.mp3")
 
     @staticmethod

@@ -10,6 +10,7 @@ from app.bot.models import Base
 from app.bot.player.mpv_player import player, get_current_track
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
+from app.bot.services.statistic import update_statistic
 from app.database import sessionmaker, engine
 from app.redis import redis_connection
 from app.settings import settings
@@ -28,8 +29,16 @@ async def on_startup(bot: Bot) -> None:
         await conn.run_sync(Base.metadata.create_all)
     if (await bot.get_webhook_info()).url != settings.WEBHOOK_URL:
         await bot.delete_webhook(drop_pending_updates=True)
-        await bot.set_webhook(f"{settings.WEBHOOK_URL}", secret_token=settings.TELEGRAM_SECRET.get_secret_value())
+        await bot.set_webhook(
+            f"{settings.WEBHOOK_URL}",
+            secret_token=settings.TELEGRAM_SECRET.get_secret_value(),
+        )
     await start_current_ether()
+
+    try:
+        await update_statistic(sessionmaker)
+    except Exception as e:
+        print(e)
 
 
 async def on_shutdown(bot: Bot) -> None:
@@ -41,10 +50,7 @@ def create_dispatcher() -> Dispatcher:
     storage = RedisStorage(redis_connection, key_builder)
     events_isolation = RedisEventIsolation(redis_connection, key_builder)
 
-    dispatcher = Dispatcher(
-        storage=storage,
-        events_isolation=events_isolation
-    )
+    dispatcher = Dispatcher(storage=storage, events_isolation=events_isolation)
 
     dispatcher.startup.register(on_startup)
     dispatcher.shutdown.register(on_shutdown)
@@ -57,6 +63,4 @@ def create_dispatcher() -> Dispatcher:
 
 
 def create_bot(token: str) -> Bot:
-    return Bot(token=token, default=DefaultBotProperties(
-        parse_mode=ParseMode.HTML
-    ))
+    return Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

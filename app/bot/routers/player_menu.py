@@ -130,8 +130,6 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
     }
 
 
-from aiogram_dialog.widgets.kbd import Button
-
 player_menu = Dialog(
     Window(
         Jinja("{{ header }}\n{{ ethers }}"),

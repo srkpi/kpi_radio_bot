@@ -1,6 +1,9 @@
 import mpv
 import asyncio
+
 from datetime import datetime, timedelta
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from typing import Optional
 
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
@@ -55,7 +58,9 @@ player = MPVPlayer(
 )
 
 
-async def get_current_track(async_session):
+async def get_current_track(
+    async_session: async_sessionmaker[AsyncSession],
+) -> Optional[str]:
     if await get_alert_state():
         return
 
