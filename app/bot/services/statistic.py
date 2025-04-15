@@ -20,8 +20,14 @@ bot_launch_time = datetime.now()
 
 class CustomEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime) or isinstance(obj, date) or isinstance(obj, time):
-            return obj.isoformat()
+        if isinstance(obj, datetime):
+            return int(obj.timestamp())
+
+        if isinstance(obj, date):
+            return int(obj.toordinal())
+
+        if isinstance(obj, time):
+            return obj.hour * 3600 + obj.minute * 60 + obj.second
 
         if isinstance(obj, Enum):
             return obj.value
