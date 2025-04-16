@@ -5,7 +5,7 @@ from datetime import date, datetime, time
 from enum import Enum
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, TypeAlias, Union
 from time import perf_counter
 from urllib.parse import urljoin
 
@@ -36,17 +36,17 @@ class CustomEncoder(json.JSONEncoder):
 
 
 class OrderStates(Enum):
-    ERROR = "e"
-    UNDECIDED = "u"
-    REJECTED = "r"
-    SKIPPED = "s"
-    PLAYED = "p"
-    QUEUED = "q"
+    PLAYED = 1
+    QUEUED = 2
+    UNDECIDED = 3
+    REJECTED = 4
+    SKIPPED = 5
+    ERROR = 6
 
 
 class DayStates(Enum):
-    CLOSED = "c"
-    HOLIDAY = "h"
+    CLOSED = 1
+    HOLIDAY = 2
 
 
 async def _fetch_banned_users(uow: UnitOfWork) -> list[datetime]:
@@ -78,27 +78,37 @@ async def _fetch_date_states(
     return day_states_formatted
 
 
+OrderRow: TypeAlias = Union[
+    list[int, int, OrderStates],
+    list[int, int, OrderStates, Optional[datetime]],
+    list[int, int, OrderStates, Optional[datetime], Optional[datetime]],
+    list[
+        int,
+        int,
+        OrderStates,
+        Optional[datetime],
+        Optional[datetime],
+        Optional[datetime],
+    ],
+]
+
+
 async def _fetch_songs_with_orders(
     uow: UnitOfWork,
 ) -> tuple[
-    dict[str, tuple[str, int]],
-    list[
-        tuple[
-            str,
-            int,
-            OrderStates,
-            Optional[datetime],
-            Optional[datetime],
-            Optional[datetime],
-        ]
-    ],
+    dict[str, tuple[str, int, str]],
+    list[OrderRow],
 ]:
-    songs_formatted = {}
-    orders_formatted = []
+    song_counter = 0
+    song_mapper: dict[str, int] = {}
+    songs_formatted: dict[str, tuple[str, int, str]] = {}
+    orders_formatted: list[OrderRow] = []
+
     orders = await uow.orders.find()
 
     for order in orders:
-        if order.video_id is None:
+        video_id = order.video_id
+        if video_id is None:
             continue
 
         order_state = OrderStates.ERROR
@@ -115,17 +125,30 @@ async def _fetch_songs_with_orders(
         elif order.expected_play_time:
             order_state = OrderStates.QUEUED
 
-        songs_formatted[order.video_id] = (order.title, order.duration)
-        orders_formatted.append(
-            (
-                order.video_id,
-                order.ether_id,
-                order_state,
-                order.decision_timestamp,
-                order.expected_play_time,
-                order.play_start,
-            )
-        )
+        song_id = song_mapper.get(video_id)
+        if song_id is None:
+            song_counter += 1
+            song_id = song_counter
+            song_mapper[video_id] = song_id
+
+        songs_formatted[str(song_id)] = (order.title, order.duration, video_id)
+
+        song_data = [
+            song_id,
+            order.ether_id,
+            order_state,
+        ]
+
+        if order.decision_timestamp:
+            song_data.append(order.expected_play_time)
+
+            if order.expected_play_time:
+                song_data.append(order.expected_play_time)
+
+                if order.play_start:
+                    song_data.append(order.play_start)
+
+        orders_formatted.append(song_data)
 
     return songs_formatted, orders_formatted
 
