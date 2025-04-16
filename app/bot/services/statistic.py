@@ -10,7 +10,6 @@ from urllib.parse import urljoin
 
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.models.banned_user import BannedUser
-from app.bot.models.ether import Ether
 from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 
@@ -95,12 +94,11 @@ OrderRow: TypeAlias = Union[
 async def _fetch_songs_with_orders(
     uow: UnitOfWork,
 ) -> tuple[
-    dict[str, tuple[str, int, str]],
+    list[tuple[str, int, str]],
     list[OrderRow],
 ]:
-    song_counter = 0
     song_mapper: dict[str, int] = {}
-    songs_formatted: dict[str, tuple[str, int, str]] = {}
+    songs_formatted: list[tuple[str, int, str]] = []
     orders_formatted: list[OrderRow] = []
 
     orders = await uow.orders.find()
@@ -126,11 +124,11 @@ async def _fetch_songs_with_orders(
 
         song_id = song_mapper.get(video_id)
         if song_id is None:
-            song_counter += 1
-            song_id = song_counter
+            song_id = len(songs_formatted)
             song_mapper[video_id] = song_id
-
-        songs_formatted[str(song_id)] = (order.title, order.duration, video_id)
+            songs_formatted.append((order.title, order.duration, video_id))
+        else:
+            songs_formatted[song_id] = (order.title, order.duration, video_id)
 
         song_data = [
             song_id,
