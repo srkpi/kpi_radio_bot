@@ -4,7 +4,6 @@ import requests
 from datetime import date, datetime, time
 from enum import Enum
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-from sqlalchemy.orm import selectinload
 from typing import Optional, TypeAlias, Union
 from time import perf_counter
 from urllib.parse import urljoin
@@ -140,7 +139,7 @@ async def _fetch_songs_with_orders(
         ]
 
         if order.decision_timestamp:
-            song_data.append(order.expected_play_time)
+            song_data.append(order.decision_timestamp)
 
             if order.expected_play_time:
                 song_data.append(order.expected_play_time)
@@ -155,19 +154,21 @@ async def _fetch_songs_with_orders(
 
 async def _fetch_ethers(
     uow: UnitOfWork,
-) -> list[dict[str, tuple[time, time, date, bool]]]:
+) -> list[dict[str, Union[list[time, time, date], list[time, time, date, 1]]]]:
     ethers_formatted = {}
-    ethers = await uow.ethers.find(
-        options=[selectinload(Ether.orders)],
-    )
+    ethers = await uow.ethers.find()
 
     for ether in ethers:
-        ethers_formatted[str(ether.id)] = (
+        data = [
             ether.start_time,
             ether.end_time,
             ether.ether_date,
-            ether.cancelled,
-        )
+        ]
+
+        if ether.cancelled:
+            data.append(1)
+
+        ethers_formatted[str(ether.id)] = data
 
     return ethers_formatted
 
