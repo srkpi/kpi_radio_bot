@@ -1,6 +1,8 @@
-import mpv
 import asyncio
+import mpv
+import threading
 
+from aiogram import Bot
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from typing import Optional
@@ -10,10 +12,7 @@ from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
 from app.bot.states.alert_state import get_alert_state
 from app.database import sessionmaker
-
-
-def mpv_log(loglevel, component, message):
-    print("[{}] ({}) {}".format(loglevel, component, message))
+from app.settings import settings
 
 
 class MPVPlayer(mpv.MPV):
@@ -47,6 +46,33 @@ class MPVPlayer(mpv.MPV):
     def play(self, filename):
         self.volume = self.constant_volume
         super().play(filename)
+
+
+async def mpv_log_error(component: str, message: str) -> None:
+    bot = Bot(token=settings.TOKEN.get_secret_value())
+    try:
+        await bot.send_message(
+            chat_id=settings.ADMINS_CHAT_ID,
+            message_thread_id=settings.ADMINS_BUGS_THREAD_ID,
+            text=f"🚨 <b>Player Error</b> 🚨\n\n<code>({component}) {message}</code>",
+            parse_mode="HTML",
+        )
+    finally:
+        await bot.session.close()
+
+
+def mpv_log(loglevel: str, component: str, message: str) -> None:
+    print("[{}] ({}) {}".format(loglevel, component, message))
+
+    if loglevel == "error":
+
+        def run():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(mpv_log_error(component, message))
+            loop.close()
+
+        threading.Thread(target=run).start()
 
 
 player = MPVPlayer(
