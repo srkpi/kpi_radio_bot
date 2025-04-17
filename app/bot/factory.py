@@ -33,12 +33,18 @@ async def on_startup(bot: Bot) -> None:
             f"{settings.WEBHOOK_URL}",
             secret_token=settings.TELEGRAM_SECRET.get_secret_value(),
         )
-    await start_current_ether()
 
     try:
         await update_statistic(sessionmaker)
     except Exception as e:
         print(e)
+
+    await start_current_ether()
+    await bot.send_message(
+        chat_id=settings.ADMINS_CHAT_ID,
+        message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+        text="Я запустився 🚀🤖⚡️",
+    )
 
 
 async def on_shutdown(bot: Bot) -> None:
