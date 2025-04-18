@@ -68,7 +68,8 @@ async def confirm_order(
             current_datetime = datetime.now()
 
             if order_ether.ether_date == current_datetime.date():
-                if order_ether.end_time < current_datetime.time():
+                current_time = current_datetime.time()
+                if order_ether.end_time < current_time:
                     text = callback.message.html_text + "\nЕтер вже закінчився"
                     await change_callback_message_text(callback, text)
                     return
@@ -84,12 +85,16 @@ async def confirm_order(
                     await change_callback_message_text(callback, text)
                     return
 
-                if await get_alert_state() and song_end_time <= order_ether.end_time:
+                if order.ether.start_time < current_time and await get_alert_state():
                     text = (
                         callback.message.html_text
                         + "\nНаразі триває повітряна тривога!"
                     )
                     await change_callback_message_text(callback, text)
+                    await callback.bot.send_message(
+                        callback_data.user_id,
+                        f"🚫 Твоє замовлення не зможе програти через тривогу: {order.title}",
+                    )
                     return
 
             text = (
