@@ -64,7 +64,7 @@ async def mpv_log_error(component: str, message: str) -> None:
 def mpv_log(loglevel: str, component: str, message: str) -> None:
     print("[{}] ({}) {}".format(loglevel, component, message))
 
-    if loglevel == "error":
+    if loglevel == "error" and component != "ffmpeg":
 
         def run():
             loop = asyncio.new_event_loop()
