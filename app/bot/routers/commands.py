@@ -501,6 +501,10 @@ async def set_volume(message: Message):
         await message.reply("Гучність має бути в межах 0-100")
         return
 
+    if player.volume == volume:
+        await message.reply("Наразі вже встановлена така гучність")
+        return
+
     player.set_volume(volume)
 
     await message.reply(f"Гучність успішно встановлена на {volume}%")
@@ -525,6 +529,10 @@ async def set_temp_volume(message: Message):
 
     if not 0 <= volume <= 100:
         await message.reply("Гучність має бути в межах 0-100")
+        return
+
+    if player.volume == volume:
+        await message.reply("Наразі вже встановлена така гучність")
         return
 
     player.set_temp_volume(volume)

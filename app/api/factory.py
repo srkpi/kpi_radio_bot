@@ -3,6 +3,7 @@ import ngrok
 import requests
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommandScopeAllPrivateChats, BotCommandScopeChat
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +15,11 @@ from app.api.routes.index import index_router
 from app.api.routes.webhook import webhook_router
 from app.api.exception_handler import exception_handler
 from app.api.stubs import BotStub, DispatcherStub, SecretStub
+from app.bot.consts.commands import ADMIN_COMMANDS, USER_COMMANDS
 from app.settings import settings
 
 
-async def update_admins(bot: Bot):
+async def update_admins(bot: Bot) -> None:
     admins_ids: list[int] = []
     admins = await bot.get_chat_administrators(chat_id=settings.ADMINS_CHAT_ID)
 
@@ -27,7 +29,17 @@ async def update_admins(bot: Bot):
     settings.ADMINS = admins_ids
 
 
-def update_monitor_url():
+async def upate_commands(bot: Bot) -> None:
+    await bot.set_my_commands(
+        commands=USER_COMMANDS, scope=BotCommandScopeAllPrivateChats()
+    )
+    await bot.set_my_commands(
+        commands=ADMIN_COMMANDS,
+        scope=BotCommandScopeChat(chat_id=settings.ADMINS_CHAT_ID),
+    )
+
+
+def update_monitor_url() -> None:
     url = f"https://uptime.betterstack.com/api/v2/monitors/{settings.UPTIME_MONITOR_ID.get_secret_value()}"
     headers = {
         "Authorization": f"Bearer {settings.UPTIME_API_TOKEN.get_secret_value()}",
@@ -59,6 +71,7 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
                 )
 
         await update_admins(bot)
+        await upate_commands(bot)
         update_monitor_url()
 
         yield
