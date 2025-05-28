@@ -161,14 +161,14 @@
         {
             "name": "Подкасти",
             "start": "18:30",
-            "end": "19:00",
+            "end": "18:45",
             "is_locked": true,
             "unlock_time": "12:00",
             "unlock_name": "Вечірній етер"
         },
         {
             "name": "Вечірній етер",
-            "start": "19:00",
+            "start": "18:45",
             "end": "22:00",
             "is_locked": false
         }
@@ -221,14 +221,14 @@
         {
             "name": "Подкасти",
             "start": "18:30",
-            "end": "19:00",
+            "end": "18:45",
             "is_locked": true,
             "unlock_time": "12:00",
             "unlock_name": "Вечірній етер"
         },
         {
             "name": "Вечірній етер",
-            "start": "19:00",
+            "start": "18:45",
             "end": "22:00",
             "is_locked": false
         }

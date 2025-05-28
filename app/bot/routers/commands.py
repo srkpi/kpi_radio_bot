@@ -1,5 +1,8 @@
 import io
+import os
+import sys
 import sqlite3
+import subprocess
 
 from openpyxl import Workbook
 from datetime import datetime, timedelta
@@ -161,12 +164,17 @@ async def stop(message: Message, uow: UnitOfWork):
         Ether.end_time >= today.time(),
         options=[selectinload(Ether.orders)],
     )
+
+    player.stop()
+
+    if ether is None:
+        await message.answer("Етер не знайдено!")
+        return
+
     for order in ether.orders:
         order.played = True
 
     await uow.flush()
-
-    player.stop()
     await message.answer("Чергу зупинено")
 
 
@@ -473,11 +481,10 @@ async def ban_list(message: Message, uow: UnitOfWork):
 
     chat_id = settings.ADMINS_CHAT_ID
     chat_id_formatted = str(chat_id)[4:] if chat_id < 0 else str(chat_id)
-    thread_id = settings.ADMINS_MODERATION_THREAD_ID
 
     for i, user in enumerate(banned_users, 1):
         ban_message_url = (
-            f"https://t.me/c/{chat_id_formatted}/{thread_id}/{user.ban_message_id}"
+            f"https://t.me/c/{chat_id_formatted}/{user.ban_message_id}"
         )
         ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
@@ -643,3 +650,16 @@ async def send_database(message: Message, uow: UnitOfWork):
     await message.reply_document(
         document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
     )
+
+
+async def restart(message: Message, uow: UnitOfWork):
+    try:
+        await uow.flush()
+    except Exception:
+        pass
+
+    script_path = os.path.abspath("./restart_bot.sh")
+    subprocess.Popen(["/bin/bash", script_path])
+    print("Bot restart script triggered. Exiting current instance.")
+    await message.reply("🔄 Бот зараз перезапуститься!")
+    sys.exit(0)

@@ -45,6 +45,7 @@ class MPVPlayer(mpv.MPV):
 
     def play(self, filename):
         self.volume = self.constant_volume
+        super().playlist_clear()
         super().play(filename)
 
 

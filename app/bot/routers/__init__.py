@@ -15,6 +15,7 @@ from app.bot.routers.commands import (
     ban_list,
     cancel,
     help_command,
+    restart,
     send_database,
     send_orders,
     set_temp_volume,
@@ -129,6 +130,11 @@ router.message.register(
 router.message.register(
     traktor,
     Command("traktor"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    restart,
+    Command("restart"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(

@@ -286,7 +286,7 @@ async def on_ether_selected(
                         order=[Order.play_start.desc()],
                     )
 
-                    if current_playing:
+                    if current_playing and current_playing.play_start:
                         total_duration -= max(
                             round((now - current_playing.play_start).total_seconds()),
                             0,
