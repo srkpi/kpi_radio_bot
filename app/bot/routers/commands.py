@@ -662,4 +662,3 @@ async def restart(message: Message, uow: UnitOfWork):
     subprocess.Popen(["/bin/bash", script_path])
     print("Bot restart script triggered. Exiting current instance.")
     await message.reply("🔄 Бот зараз перезапуститься!")
-    sys.exit(0)
