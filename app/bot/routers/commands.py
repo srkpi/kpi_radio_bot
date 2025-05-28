@@ -659,6 +659,10 @@ async def restart(message: Message, uow: UnitOfWork):
         pass
 
     script_path = os.path.abspath("./restart_bot.sh")
-    subprocess.Popen(["/bin/bash", script_path])
+    subprocess.Popen(
+        ["nohup", "bash", script_path],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     print("Bot restart script triggered. Exiting current instance.")
     await message.reply("🔄 Бот зараз перезапуститься!")
