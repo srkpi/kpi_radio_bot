@@ -6,8 +6,6 @@ from yt_dlp import YoutubeDL
 
 download_dir = Path("./music/downloads")
 download_dir.mkdir(parents=True, exist_ok=True)
-for file in download_dir.iterdir():
-    file.unlink()
 
 _queue = asyncio.Queue()
 _active_downloads = set()

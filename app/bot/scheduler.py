@@ -1,10 +1,14 @@
+import os
+import subprocess
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.player.mpv_player import player, get_current_track
+from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.statistic import update_statistic
+from app.settings import settings
 
 
 day_mapping = {
@@ -49,11 +53,39 @@ class Scheduler:
             hours=3,
             args=(self._async_sessionmaker,),
         )
+        self._scheduler.add_job(
+            self.scheduled_restart,
+            "cron",
+            hour=22,
+            minute=5,
+            args=(self._async_sessionmaker, self._bot),
+        )
         self._scheduler.start()
 
     @staticmethod
     def minute():
         player.play("music/minute.mp3")
+
+    @staticmethod
+    async def scheduled_restart(
+        async_session: async_sessionmaker[AsyncSession], bot: Bot
+    ):
+        async with async_session() as session, session.begin():
+            async with UnitOfWork(session) as uow:
+                await uow.flush()
+
+        script_path = os.path.abspath("./restart_bot.sh")
+        subprocess.Popen(
+            ["nohup", "bash", script_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        await bot.send_message(
+            settings.ADMINS_CHAT_ID,
+            "🔄 Автоматичний перезапуск",
+            message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+        )
 
     @staticmethod
     async def start_ether(async_session: async_sessionmaker[AsyncSession]):

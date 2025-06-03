@@ -1,3 +1,4 @@
+import html
 from datetime import datetime, timedelta
 
 from aiogram_dialog import Dialog, Window, DialogManager
@@ -101,7 +102,12 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         orders.sort(key=lambda x: x.expected_play_time)
         for order in orders:
             if order.confirmed and (not order.played or order.play_start):
-                orders_string += f"{'>' if current_order and order.id == current_order.id else '•'} {order.expected_play_time.strftime('%H:%M')} - {order.title}\n"
+                safe_title = html.escape(order.title)
+                if order.video_id:
+                    title_link = f'<a href="https://youtube.com/watch?v={order.video_id}">{safe_title}</a>'
+                else:
+                    title_link = safe_title
+                orders_string += f"{'>' if current_order and order.id == current_order.id else '•'} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
 
         if orders_string:
             ethers_info += f"\n{ether.name} ({ether.start_time.strftime('%H:%M')}-{ether.end_time.strftime('%H:%M')}):\n{orders_string}"
@@ -113,9 +119,21 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         formatted_date = selected_date.strftime("%d.%m")
         header = "Історія треків за " + formatted_date
     else:
-        previous_track = previous_order.title if previous_order else "відсутній"
-        current_track = current_order.title if current_order else "нічого"
-        next_track = next_order.title if next_order else "відсутній"
+        previous_track = (
+            f'<a href="https://youtube.com/watch?v={previous_order.video_id}">{html.escape(previous_order.title)}</a>'
+            if previous_order
+            else "відсутній"
+        )
+        current_track = (
+            f'<a href="https://youtube.com/watch?v={current_order.video_id}">{html.escape(current_order.title)}</a>'
+            if current_order
+            else "нічого"
+        )
+        next_track = (
+            f'<a href="https://youtube.com/watch?v={next_order.video_id}">{html.escape(next_order.title)}</a>'
+            if next_order
+            else "відсутній"
+        )
         header = (
             f"⏮ Попередній трек: {previous_track}\n"
             f"▶️ Зараз грає: {current_track}\n"
@@ -132,7 +150,7 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
 
 player_menu = Dialog(
     Window(
-        Jinja("{{ header }}\n{{ ethers }}"),
+        Jinja("{{ header|safe }}\n{{ ethers|safe }}"),
         Group(
             Button(
                 Const("<----"),
@@ -161,5 +179,7 @@ player_menu = Dialog(
         Start(Const("Назад"), id="__main__", state=MainStates.main),
         getter=get_data,
         state=PlayerStates.now_playing,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 )
