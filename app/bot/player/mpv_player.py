@@ -130,6 +130,7 @@ async def set_latest_track_played(async_session):
             order = await uow.orders.find_one(
                 Order.played == False,
                 Order.confirmed == True,
+                Order.play_start != None,
                 order=[Order.play_start.desc()],
             )
             if not order:
