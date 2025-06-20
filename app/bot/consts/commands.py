@@ -26,4 +26,5 @@ ADMIN_COMMANDS = [
     BotCommand(command="send_orders", description="Надіслати таблицю з замовленнями"),
     BotCommand(command="send_database", description="Надіслати всю базу даних"),
     BotCommand(command="restart", description="Перезавантажити бота"),
+    BotCommand(command="force_play", description="Примусове програвання пісня (+ url)"),
 ]
