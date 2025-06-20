@@ -32,6 +32,7 @@ from app.bot.routers.commands import (
     traktor,
     unban,
     unholiday,
+    force_play,
 )
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
@@ -135,6 +136,11 @@ router.message.register(
 router.message.register(
     restart,
     Command("restart"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    force_play,
+    Command("force_play"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(

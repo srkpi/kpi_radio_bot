@@ -45,8 +45,10 @@ class MPVPlayer(mpv.MPV):
 
     def play(self, filename):
         self.volume = self.constant_volume
-        super().playlist_clear()
         super().play(filename)
+
+    def stop_current(self):
+        self.command('playlist-remove', 0)
 
 
 async def mpv_log_error(component: str, message: str) -> None:
@@ -154,8 +156,13 @@ async def set_latest_track_played(async_session):
 @player.event_callback("end-file")
 def on_end_file(event):
     print(event)
+
     loop = asyncio.new_event_loop()
     loop.run_until_complete(set_latest_track_played(sessionmaker))
+
+    if event.data.reason == 2: # If stopped
+        return
+
     track = loop.run_until_complete(get_current_track(sessionmaker))
     if track:
         player.play(track)

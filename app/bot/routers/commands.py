@@ -1,11 +1,12 @@
 import io
 import os
-import sys
 import sqlite3
 import subprocess
+import re
+from datetime import date, datetime, timedelta
+from typing import Tuple, List, Optional
 
 from openpyxl import Workbook
-from datetime import datetime, timedelta
 
 from aiogram import Bot
 from aiogram.types import Message
@@ -20,6 +21,7 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.routers.order_menu import search_song_by_url
 from app.bot.services.feedback import get_user_message_id
 from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
 from app.bot.states.alert_state import get_alert_state, set_alert_state
@@ -38,6 +40,90 @@ def get_text_after_command(message: Message) -> str | None:
         return None
 
     return full_text[command_end_index + 1 :]
+
+
+def parse_dates_from_command(arg: str | None) -> list[date] | None:
+    """
+    Parses a single date (21.06), or a range (21.06-30.06), returns list of date objects.
+    If arg is None, returns [today].
+    Returns None if invalid.
+    """
+    if not arg or not arg.strip():
+        return [datetime.now().date()]
+
+    arg = arg.strip()
+    date_pattern = r"^(\d{2})\.(\d{2})$"
+    range_pattern = r"^(\d{2})\.(\d{2})-(\d{2})\.(\d{2})$"
+
+    if re.match(date_pattern, arg):
+        day, month = map(int, arg.split("."))
+        try:
+            d = date(datetime.now().year, month, day)
+            return [d]
+        except ValueError:
+            return None
+
+    m = re.match(range_pattern, arg)
+    if m:
+        day1, month1, day2, month2 = map(int, m.groups())
+        try:
+            start = date(datetime.now().year, month1, day1)
+            end = date(datetime.now().year, month2, day2)
+            if end < start:
+                return None
+            days = []
+            cur = start
+            while cur <= end:
+                days.append(cur)
+                cur += timedelta(days=1)
+            return days
+        except ValueError:
+            return None
+
+    return None
+
+
+def parse_dates_and_reason(arg: str | None) -> Tuple[Optional[List[date]], Optional[str]]:
+    """
+    Parses a single date (21.06), a range (21.06-30.06), or just a reason.
+    Returns (list of dates, reason). If no date is given, uses today.
+    Returns (None, None) if invalid.
+    """
+    today = datetime.now().date()
+    if not arg or not arg.strip():
+        return [today], None
+
+    arg = arg.strip()
+    # Match: 21.06-23.06 reason
+    m = re.match(r"^(\d{2})\.(\d{2})-(\d{2})\.(\d{2})(?:\s+(.*))?$", arg)
+    if m:
+        day1, month1, day2, month2, reason = m.groups()
+        try:
+            start = date(today.year, int(month1), int(day1))
+            end = date(today.year, int(month2), int(day2))
+            if end < start:
+                return None, None
+            days = []
+            cur = start
+            while cur <= end:
+                days.append(cur)
+                cur += timedelta(days=1)
+            return days, reason.strip() if reason else None
+        except ValueError:
+            return None, None
+
+    # Match: 21.06 reason
+    m = re.match(r"^(\d{2})\.(\d{2})(?:\s+(.*))?$", arg)
+    if m:
+        day, month, reason = m.groups()
+        try:
+            d = date(today.year, int(month), int(day))
+            return [d], reason.strip() if reason else None
+        except ValueError:
+            return None, None
+
+    # If not a date, treat as reason for today
+    return [today], arg.strip()
 
 
 async def start(message: Message, dialog_manager: DialogManager):
@@ -73,7 +159,7 @@ async def skip(message: Message, uow: UnitOfWork):
     )
     order.played = True
 
-    player.stop()
+    player.stop_current()
 
     if next_order:
         next_order.play_start = datetime.now()
@@ -121,7 +207,7 @@ async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
         )
         order.played = True
 
-        player.stop()
+        player.stop_current()
 
         if next_order:
             next_order.play_start = datetime.now()
@@ -165,16 +251,19 @@ async def stop(message: Message, uow: UnitOfWork):
         options=[selectinload(Ether.orders)],
     )
 
-    player.stop()
+    if ether is not None:
+        for order in ether.orders:
+            order.played = True
+
+        await uow.flush()
+
+    if ether is not None and ether.ether_date == today.date():
+        player.stop()
 
     if ether is None:
         await message.answer("Етер не знайдено!")
         return
 
-    for order in ether.orders:
-        order.played = True
-
-    await uow.flush()
     await message.answer("Чергу зупинено")
 
 
@@ -243,114 +332,168 @@ async def traktor(message: Message, uow: UnitOfWork):
         order.played = True
         await uow.flush()
 
-    player.stop()
     player.play("music/traktor.mp3")
 
     await message.answer("Трактор їде митися!")
 
 
 async def holiday(message: Message, uow: UnitOfWork):
-    today = datetime.now().date()
-
-    if today.weekday() == 6:
-        await message.answer("Неділя завжди вихідний день")
+    arg = get_text_after_command(message)
+    dates, _ = parse_dates_and_reason(arg)
+    if not dates:
+        await message.reply(
+            "Невірний формат дати! Використовуйте /holiday або /holiday 21.06 або /holiday 21.06-30.06"
+        )
         return
 
-    current_state = await uow.day_state.find_one(DayState.state_date == today)
-    if current_state:
-        current_state.is_holiday = True
-    else:
-        await uow.day_state.create(DayState(state_date=today, is_holiday=True))
+    for d in dates:
+        if d.weekday() == 6:
+            await message.answer(f"{d.strftime('%d.%m')} — неділя завжди вихідний день")
+            continue
 
-    ethers = await uow.ethers.find(
-        Ether.ether_date == today,
-        Ether.cancelled == False,
-        options=[selectinload(Ether.orders)],
-    )
+        current_state = await uow.day_state.find_one(DayState.state_date == d)
+        if current_state:
+            current_state.is_holiday = True
+        else:
+            await uow.day_state.create(DayState(state_date=d, is_holiday=True))
 
-    for ether in ethers:
-        ether.cancelled = True
-        for order in ether.orders:
-            order.played = True
+        ethers = await uow.ethers.find(
+            Ether.ether_date == d,
+            Ether.cancelled == False,
+            options=[selectinload(Ether.orders)],
+        )
+
+        for ether in ethers:
+            ether.cancelled = True
+            for order in ether.orders:
+                order.played = True
 
     await uow.flush()
-    player.stop()
-
-    await message.answer("День тепер вихідний! Минула черга на цей день очищена!")
+    if datetime.now().date() in dates:
+        player.stop()
+    if len(dates) == 1:
+        await message.answer(
+            f"День {dates[0].strftime('%d.%m')} тепер вихідний! Минула черга на цей день очищена!"
+        )
+    else:
+        await message.answer(
+            f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} тепер вихідні! Минула черга на ці дні очищена!"
+        )
 
 
 async def unholiday(message: Message, uow: UnitOfWork):
-    today = datetime.now().date()
-    current_state = await uow.day_state.find_one(DayState.state_date == today)
-    if current_state is None or not current_state.is_holiday:
-        await message.answer("День не був позначений як вихідний")
+    arg = get_text_after_command(message)
+    dates, _ = parse_dates_and_reason(arg)
+    if not dates:
+        await message.reply(
+            "Невірний формат дати! Використовуйте /unholiday або /unholiday 21.06 або /unholiday 21.06-30.06"
+        )
         return
 
-    current_state.is_holiday = False
+    for d in dates:
+        current_state = await uow.day_state.find_one(DayState.state_date == d)
+        if current_state is None or not current_state.is_holiday:
+            await message.answer(f"{d.strftime('%d.%m')} не був позначений як вихідний")
+            continue
 
-    ethers = await uow.ethers.find(
-        Ether.ether_date == today,
-        Ether.cancelled == False,
-        options=[selectinload(Ether.orders)],
-    )
+        current_state.is_holiday = False
 
-    for ether in ethers:
-        ether.cancelled = True
-        for order in ether.orders:
-            order.played = True
+        ethers = await uow.ethers.find(
+            Ether.ether_date == d,
+            Ether.cancelled == False,
+            options=[selectinload(Ether.orders)],
+        )
+
+        for ether in ethers:
+            ether.cancelled = True
+            for order in ether.orders:
+                order.played = True
 
     await uow.flush()
-    player.stop()
-
-    await message.answer("День тепер не вихідний! Минула черга на цей день очищена!")
+    if datetime.now().date() in dates:
+        player.stop()
+    if len(dates) == 1:
+        await message.answer(
+            f"День {dates[0].strftime('%d.%m')} тепер не вихідний! Минула черга на цей день очищена!"
+        )
+    else:
+        await message.answer(
+            f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} тепер не вихідні! Минула черга на ці дні очищена!"
+        )
 
 
 async def close(message: Message, uow: UnitOfWork):
-    today = datetime.now().date()
+    arg = get_text_after_command(message)
+    dates, reason = parse_dates_and_reason(arg)
+    if not dates:
+        await message.reply(
+            "Невірний формат дати! Використовуйте /close, /close 21.06, /close 21.06-23.06 або /close 21.06 причина"
+        )
+        return
 
-    current_state = await uow.day_state.find_one(DayState.state_date == today)
-    if current_state:
-        current_state.is_closed = True
-        current_state.reason = get_text_after_command(message)
-    else:
-        await uow.day_state.create(
-            DayState(
-                state_date=today, is_closed=True, reason=get_text_after_command(message)
+    for d in dates:
+        current_state = await uow.day_state.find_one(DayState.state_date == d)
+        if current_state:
+            current_state.is_closed = True
+            current_state.reason = reason
+        else:
+            await uow.day_state.create(
+                DayState(state_date=d, is_closed=True, reason=reason)
             )
+
+        ethers = await uow.ethers.find(
+            Ether.ether_date == d,
+            Ether.cancelled == False,
+            options=[selectinload(Ether.orders)],
         )
 
-    ethers = await uow.ethers.find(
-        Ether.ether_date == today,
-        Ether.cancelled == False,
-        options=[selectinload(Ether.orders)],
-    )
-
-    for ether in ethers:
-        for order in ether.orders:
-            order.played = True
+        for ether in ethers:
+            for order in ether.orders:
+                order.played = True
 
     await uow.flush()
-    player.stop()
+    if datetime.now().date() in dates:
+        player.stop()
 
-    await message.answer(
-        "День закритий для замовлень! Минула черга на цей день видалена"
-    )
+    if len(dates) == 1:
+        await message.answer(
+            f"День {dates[0].strftime('%d.%m')} закритий для замовлень! Минула черга на цей день видалена"
+        )
+    else:
+        await message.answer(
+            f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} закриті для замовлень! Минула черга на ці дні видалена"
+        )
 
 
 async def open(message: Message, uow: UnitOfWork):
-    today = datetime.now().date()
-
-    current_state = await uow.day_state.find_one(DayState.state_date == today)
-    if current_state:
-        current_state.is_closed = False
-        current_state.reason = None
-    else:
-        await uow.day_state.create(
-            DayState(state_date=today, is_closed=False, reason=None)
+    arg = get_text_after_command(message)
+    dates, _ = parse_dates_and_reason(arg)
+    if not dates:
+        await message.reply(
+            "Невірний формат дати! Використовуйте /open, /open 21.06 або /open 21.06-23.06"
         )
+        return
+
+    for d in dates:
+        current_state = await uow.day_state.find_one(DayState.state_date == d)
+        if current_state:
+            current_state.is_closed = False
+            current_state.reason = None
+        else:
+            await uow.day_state.create(
+                DayState(state_date=d, is_closed=False, reason=None)
+            )
 
     await uow.flush()
-    await message.answer("День відкритий до замовлень!")
+
+    if len(dates) == 1:
+        await message.answer(
+            f"День {dates[0].strftime('%d.%m')} відкритий до замовлень!"
+        )
+    else:
+        await message.answer(
+            f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} відкриті до замовлень!"
+        )
 
 
 async def alert(message: Message, bot: Bot, uow: UnitOfWork):
@@ -362,7 +505,6 @@ async def alert(message: Message, bot: Bot, uow: UnitOfWork):
     await set_alert_state(True)
     await clear_queue_alert(uow, bot)
 
-    player.stop()
     player.play("music/alert.mp3")
 
     await message.reply("Повітряна тривога увімкненна!")
@@ -376,7 +518,6 @@ async def stop_alert(message: Message, uow: UnitOfWork):
 
     await set_alert_state(False)
 
-    player.stop()
     player.play("music/all_clear.mp3")
 
     await message.reply("Повітряна тривога вимкнена!")
@@ -483,9 +624,7 @@ async def ban_list(message: Message, uow: UnitOfWork):
     chat_id_formatted = str(chat_id)[4:] if chat_id < 0 else str(chat_id)
 
     for i, user in enumerate(banned_users, 1):
-        ban_message_url = (
-            f"https://t.me/c/{chat_id_formatted}/{user.ban_message_id}"
-        )
+        ban_message_url = f"https://t.me/c/{chat_id_formatted}/{user.ban_message_id}"
         ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")
@@ -666,3 +805,40 @@ async def restart(message: Message, uow: UnitOfWork):
     )
     print("Bot restart script triggered. Exiting current instance.")
     await message.reply("🔄 Бот зараз перезапуститься!")
+
+
+async def force_play(message: Message, uow: UnitOfWork):
+    url = get_text_after_command(message)
+    if not url:
+        await message.reply("Невірний формат команди! /force_play {url}")
+        return
+
+    today = datetime.now()
+    order = await uow.orders.find_one(
+        Ether.ether_date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.cancelled == False,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start != None,
+        options=[joinedload(Order.ether)],
+        order=[Order.play_start.desc()],
+    )
+
+    if order:
+        order.played = True
+        await uow.flush()
+
+    video_info = await search_song_by_url(url, message, False)
+    if video_info is None:
+        return
+
+    video_id = video_info["video_id"]
+
+    song_path = get_song_path(video_id)
+    if song_path:
+        player.play(str(song_path))
+    else:
+        player.play(f"https://youtube.com/watch?v={video_id}")
+
+    await message.reply(f"⏯️ Примусово програється: {video_info['title']}")

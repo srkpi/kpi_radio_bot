@@ -64,7 +64,6 @@ async def alert_route(
                     async with UnitOfWork(session) as uow:
                         await clear_queue_alert(uow, bot)
 
-                player.stop()
                 player.play("music/alert.mp3")
 
                 await bot.send_message(
@@ -75,7 +74,6 @@ async def alert_route(
         elif is_alert:
             await set_alert_state(False)
 
-            player.stop()
             player.play("music/all_clear.mp3")
 
             await bot.send_message(
