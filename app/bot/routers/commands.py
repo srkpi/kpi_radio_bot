@@ -3,7 +3,8 @@ import os
 import sqlite3
 import subprocess
 import re
-from datetime import date, datetime, timedelta
+
+from datetime import date, datetime, time, timedelta
 from typing import Tuple, List, Optional
 
 from openpyxl import Workbook
@@ -16,14 +17,20 @@ from sqlalchemy.orm import joinedload, selectinload
 from aiogram.types import BufferedInputFile
 
 from app.api.routes.alert import clear_queue_alert
+from app.bot.consts.ethers import SCHEDULE
 from app.bot.models import Ether, Order
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
-from app.bot.routers.order_menu import search_song_by_url
+from app.bot.routers.order_menu import has_time_passed, search_song_by_url, ytmusic, remove_brackets
 from app.bot.services.feedback import get_user_message_id
-from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
+from app.bot.services.song_downloader import (
+    add_to_download_queue,
+    delete_song,
+    get_song_path,
+    is_downloading,
+)
 from app.bot.states.alert_state import get_alert_state, set_alert_state
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
@@ -83,7 +90,9 @@ def parse_dates_from_command(arg: str | None) -> list[date] | None:
     return None
 
 
-def parse_dates_and_reason(arg: str | None) -> Tuple[Optional[List[date]], Optional[str]]:
+def parse_dates_and_reason(
+    arg: str | None,
+) -> Tuple[Optional[List[date]], Optional[str]]:
     """
     Parses a single date (21.06), a range (21.06-30.06), or just a reason.
     Returns (list of dates, reason). If no date is given, uses today.
@@ -93,11 +102,17 @@ def parse_dates_and_reason(arg: str | None) -> Tuple[Optional[List[date]], Optio
     if not arg or not arg.strip():
         return [today], None
 
-    arg = arg.strip()
-    # Match: 21.06-23.06 reason
-    m = re.match(r"^(\d{2})\.(\d{2})-(\d{2})\.(\d{2})(?:\s+(.*))?$", arg)
+    lines = [line.strip() for line in arg.strip().splitlines() if line.strip()]
+    if not lines:
+        return [today], None
+
+    first_line = lines[0]
+    rest = "\n".join(lines[1:]).strip()
+    reason = None
+
+    m = re.match(r"^(\d{2})\.(\d{2})-(\d{2})\.(\d{2})(?:\s+(.*))?$", first_line)
     if m:
-        day1, month1, day2, month2, reason = m.groups()
+        day1, month1, day2, month2, first_reason = m.groups()
         try:
             start = date(today.year, int(month1), int(day1))
             end = date(today.year, int(month2), int(day2))
@@ -108,21 +123,25 @@ def parse_dates_and_reason(arg: str | None) -> Tuple[Optional[List[date]], Optio
             while cur <= end:
                 days.append(cur)
                 cur += timedelta(days=1)
-            return days, reason.strip() if reason else None
+            reason = first_reason or ""
+            if rest:
+                reason = f"{reason.strip()}\n{rest}".strip()
+            return days, reason if reason else None
         except ValueError:
             return None, None
 
-    # Match: 21.06 reason
-    m = re.match(r"^(\d{2})\.(\d{2})(?:\s+(.*))?$", arg)
+    m = re.match(r"^(\d{2})\.(\d{2})(?:\s+(.*))?$", first_line)
     if m:
-        day, month, reason = m.groups()
+        day, month, first_reason = m.groups()
         try:
             d = date(today.year, int(month), int(day))
-            return [d], reason.strip() if reason else None
+            reason = first_reason or ""
+            if rest:
+                reason = f"{reason.strip()}\n{rest}".strip()
+            return [d], reason if reason else None
         except ValueError:
             return None, None
 
-    # If not a date, treat as reason for today
     return [today], arg.strip()
 
 
@@ -842,3 +861,154 @@ async def force_play(message: Message, uow: UnitOfWork):
         player.play(f"https://youtube.com/watch?v={video_id}")
 
     await message.reply(f"⏯️ Примусово програється: {video_info['title']}")
+
+
+async def force_playlist(message: Message, uow: UnitOfWork):
+    url = get_text_after_command(message)
+    if not url:
+        await message.reply(
+            "Невірний формат команди! /force_playlist {youtube_playlist_url}"
+        )
+        return
+
+    now = datetime.now()
+    ether = await uow.ethers.find_one(
+        Ether.ether_date == now.date(),
+        Ether.start_time <= now.time(),
+        Ether.cancelled == False,
+        Ether.end_time >= now.time(),
+        options=[selectinload(Ether.orders)],
+    )
+
+    if ether is None:
+        today = date.today()
+        day_state = await uow.day_state.find_one(DayState.state_date == today)
+
+        if day_state and day_state.is_holiday:
+            day_schedule = SCHEDULE.get("6")
+        else:
+            day_schedule = SCHEDULE.get(str(now.weekday()))
+
+        cur_time = now.time()
+
+        if day_schedule is None:
+            await message.answer("Етер не знайдено!")
+            return
+
+        for cur_ether in day_schedule:
+            if has_time_passed(
+                cur_time, cur_ether.get("start")
+            ) and not has_time_passed(cur_time, cur_ether.get("end")):
+                start_hour, start_minute = map(int, cur_ether["start"].split(":"))
+                start_time = time(start_hour, start_minute)
+
+                end_hour, end_minute = map(int, cur_ether["end"].split(":"))
+                end_time = time(end_hour, end_minute)
+
+                ether = await uow.ethers.create(
+                    Ether(
+                        name=cur_ether["name"],
+                        start_time=start_time,
+                        end_time=end_time,
+                        ether_date=today,
+                        cancelled=False,
+                    )
+                )
+
+                break
+
+    if ether is None:
+        await message.answer("Етер не знайдено!")
+        return
+
+    try:
+        playlist_id = None
+        if "list=" in url:
+            playlist_id = url.split("list=")[-1].split("&")[0]
+        elif "/playlist/" in url:
+            playlist_id = url.split("/playlist/")[-1].split("?")[0]
+        if not playlist_id:
+            await message.reply("Не вдалося визначити playlist_id з посилання.")
+            return
+        playlist = ytmusic.get_playlist(playlist_id, limit=None)
+        tracks = playlist.get("tracks", [])
+    except Exception as e:
+        await message.reply(f"Помилка при отриманні плейлиста: {e}")
+        return
+
+    if not tracks:
+        await message.reply("Плейлист порожній або не вдалося отримати треки.")
+        return
+
+    ether_start = max(now, datetime.combine(ether.ether_date, ether.start_time))
+    ether_end = datetime.combine(ether.ether_date, ether.end_time)
+    ether_duration = int((ether_end - ether_start).total_seconds())
+    total_playlist_duration = 0
+
+    for t in tracks:
+        try:
+            total_playlist_duration += int(t.get("duration_seconds", 0))
+        except Exception:
+            pass
+    if total_playlist_duration == 0:
+        await message.reply("Не вдалося визначити тривалість треків у плейлисті.")
+        return
+
+    for order in ether.orders:
+        order.played = True
+
+    await uow.flush()
+
+    player.stop()
+
+    orders = []
+    seconds_filled = 0
+    order_idx = 0
+    admin_id = message.from_user.id
+
+    while seconds_filled < ether_duration:
+        for track in tracks:
+            if seconds_filled >= ether_duration:
+                break
+
+            video_id = track.get("videoId")
+            title = remove_brackets(track.get("title", ""))
+
+            duration = int(track.get("duration_seconds", 0))
+            if not video_id or not title or duration == 0:
+                continue
+
+            expected_play_time = now + timedelta(seconds=seconds_filled)
+            order = Order(
+                title=title,
+                video_id=video_id,
+                duration=duration,
+                ether_id=ether.id,
+                confirmed=True,
+                ordered_by=admin_id,
+                decision_timestamp=datetime.now(),
+                played=False,
+                play_start=datetime.now() if order_idx == 0 else None,
+                expected_play_time=expected_play_time,
+            )
+
+            await uow.orders.create(order)
+
+            orders.append(order)
+
+            if order_idx == 0:
+                song_path = get_song_path(video_id)
+                if song_path:
+                    player.play(str(song_path))
+                else:
+                    player.play(f"https://youtube.com/watch?v={video_id}")
+            else:
+                await add_to_download_queue(video_id)
+
+            seconds_filled += duration + 5
+            order_idx += 1
+
+    await uow.flush()
+    await message.reply(
+        f"Поточний етер заповнено треками з плейлиста! Всього додано: {order_idx} треків."
+    )

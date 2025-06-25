@@ -33,6 +33,7 @@ from app.bot.routers.commands import (
     unban,
     unholiday,
     force_play,
+    force_playlist,
 )
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
@@ -141,6 +142,11 @@ router.message.register(
 router.message.register(
     force_play,
     Command("force_play"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    force_playlist,
+    Command("force_playlist"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(
