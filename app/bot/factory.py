@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -35,12 +36,13 @@ async def on_startup(bot: Bot) -> None:
             secret_token=settings.TELEGRAM_SECRET.get_secret_value(),
         )
 
+    await ffmpeg_streamer.start()
+
     try:
         await update_statistic(sessionmaker)
     except Exception as e:
         print(e)
 
-    await ffmpeg_streamer.start()
     await start_current_ether()
     await bot.send_message(
         chat_id=settings.ADMINS_CHAT_ID,
