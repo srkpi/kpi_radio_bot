@@ -39,9 +39,6 @@ async def proxy_icecast_stream(request: Request):
                             chunk = await asyncio.wait_for(
                                 resp.content.readany(), timeout=15
                             )
-                            if not chunk:
-                                logger.info("No more data from Icecast, ending stream.")
-                                break
                             yield chunk
                             retries = 0
                         except asyncio.TimeoutError:
