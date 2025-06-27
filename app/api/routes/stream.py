@@ -26,4 +26,4 @@ async def proxy_icecast_stream(request: Request):
             await resp.release()
             await session.close()
 
-    return StreamingResponse(stream_generator(), media_type="audio/mpeg")
+    return StreamingResponse(stream_generator(), media_type="application/ogg")
