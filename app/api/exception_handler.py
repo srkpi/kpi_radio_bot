@@ -14,6 +14,9 @@ async def exception_handler(request: Request, exc: Exception, bot: Bot) -> JSONR
     filtered_tb = [line for line in tb if "app" in line.filename]
     formatted_tb = "".join(traceback.format_list(filtered_tb))
 
+    if "stream_generator" in formatted_tb and "async for chunk in resp.content.iter_any()" in formatted_tb:
+        return Response(status_code=200)
+
     try:
         await bot.send_message(
             chat_id=settings.ADMINS_CHAT_ID,
