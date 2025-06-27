@@ -1,3 +1,5 @@
+import asyncio
+import signal
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -8,6 +10,7 @@ from aiogram_dialog import setup_dialogs
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.bot.models import Base
 from app.bot.player.mpv_player import player, get_current_track
+from app.bot.player.streamer import ffmpeg_streamer
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
 from app.bot.services.statistic import update_statistic
@@ -39,6 +42,7 @@ async def on_startup(bot: Bot) -> None:
     except Exception as e:
         print(e)
 
+    await ffmpeg_streamer.start()
     await start_current_ether()
     await bot.send_message(
         chat_id=settings.ADMINS_CHAT_ID,
@@ -48,6 +52,7 @@ async def on_startup(bot: Bot) -> None:
 
 
 async def on_shutdown(bot: Bot) -> None:
+    await ffmpeg_streamer.stop()
     await bot.delete_webhook()
 
 
