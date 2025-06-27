@@ -41,8 +41,15 @@ class FFmpegStreamer:
 
     async def _read_stderr(self):
         assert self.proc.stderr is not None
-        async for line in self.proc.stderr:
-            print(f"ffmpeg: {line.decode().rstrip()}")
+        buffer = b""
+        while True:
+            chunk = await self.proc.stderr.read(1024)
+            if not chunk:
+                break
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                print(f"ffmpeg: {line.decode(errors='ignore').rstrip()}")
 
     async def stop(self):
         if self.proc and self.proc.returncode is None:

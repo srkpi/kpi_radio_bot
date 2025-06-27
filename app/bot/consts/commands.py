@@ -28,4 +28,5 @@ ADMIN_COMMANDS = [
     BotCommand(command="restart", description="Перезавантажити бота"),
     BotCommand(command="force_play", description="Примусове програвання пісня (+ url)"),
     BotCommand(command="force_playlist", description="Примусове програвання плейлісту протягом етеру (+ url)"),
+    BotCommand(command="traktor", description="Їде трактор митися"),
 ]
