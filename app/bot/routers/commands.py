@@ -21,7 +21,7 @@ from app.bot.consts.ethers import SCHEDULE
 from app.bot.models import Ether, Order
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
-from app.bot.player.mpv_player import player
+from app.bot.player.mpv_player import player, physical_player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.order_menu import has_time_passed, search_song_by_url, ytmusic, remove_brackets
 from app.bot.services.feedback import get_user_message_id
@@ -666,11 +666,11 @@ async def set_volume(message: Message):
         await message.reply("Гучність має бути в межах 0-100")
         return
 
-    if player.volume == volume:
+    if physical_player.volume == volume:
         await message.reply("Наразі вже встановлена така гучність")
         return
 
-    player.set_volume(volume)
+    physical_player.set_volume(volume)
 
     await message.reply(f"Гучність успішно встановлена на {volume}%")
 
@@ -696,11 +696,11 @@ async def set_temp_volume(message: Message):
         await message.reply("Гучність має бути в межах 0-100")
         return
 
-    if player.volume == volume:
+    if physical_player.volume == volume:
         await message.reply("Наразі вже встановлена така гучність")
         return
 
-    player.set_temp_volume(volume)
+    physical_player.set_temp_volume(volume)
 
     await message.reply(f"Гучність для поточної пісні успішно встановлена на {volume}%")
 

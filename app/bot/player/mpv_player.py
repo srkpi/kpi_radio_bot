@@ -68,14 +68,6 @@ class DoubleMPVPlayer:
         self.physical_player.stop_current()
         self.streaming_player.stop_current()
 
-    def set_volume(self, volume: int):
-        self.physical_player.set_volume(volume)
-        self.streaming_player.set_volume(volume)
-
-    def set_temp_volume(self, volume: int):
-        self.physical_player.set_temp_volume(volume)
-        self.streaming_player.set_temp_volume(volume)
-
 
 async def mpv_log_error(component: str, message: str) -> None:
     bot = Bot(token=settings.TOKEN.get_secret_value())
