@@ -48,7 +48,33 @@ class MPVPlayer(mpv.MPV):
         super().play(filename)
 
     def stop_current(self):
-        self.command('playlist-remove', 0)
+        self.command("playlist-remove", 0)
+
+
+class DoubleMPVPlayer:
+    def __init__(self, physical_player: MPVPlayer, streaming_player: MPVPlayer):
+        self.physical_player = physical_player
+        self.streaming_player = streaming_player
+
+    def play(self, filename):
+        self.physical_player.play(filename)
+        self.streaming_player.play(filename)
+
+    def stop(self):
+        self.physical_player.stop()
+        self.streaming_player.stop()
+
+    def stop_current(self):
+        self.physical_player.stop_current()
+        self.streaming_player.stop_current()
+
+    def set_volume(self, volume: int):
+        self.physical_player.set_volume(volume)
+        self.streaming_player.set_volume(volume)
+
+    def set_temp_volume(self, volume: int):
+        self.physical_player.set_temp_volume(volume)
+        self.streaming_player.set_temp_volume(volume)
 
 
 async def mpv_log_error(component: str, message: str) -> None:
@@ -78,13 +104,25 @@ def mpv_log(loglevel: str, component: str, message: str) -> None:
         threading.Thread(target=run).start()
 
 
-player = MPVPlayer(
+physical_player = MPVPlayer(
     ytdl=True,
+    audio_device="alsa/hw:2,0",
     log_handler=mpv_log,
     input_default_bindings=True,
     video=False,
     cache=False,
 )
+
+streaming_player = MPVPlayer(
+    ytdl=True,
+    audio_device="alsa/hw:3,0",
+    log_handler=mpv_log,
+    input_default_bindings=True,
+    video=False,
+    cache=False,
+)
+
+player = DoubleMPVPlayer(physical_player, streaming_player)
 
 
 async def get_current_track(
@@ -153,16 +191,21 @@ async def set_latest_track_played(async_session):
                 delete_song(video_id)
 
 
-@player.event_callback("end-file")
+@physical_player.event_callback("end-file")
 def on_end_file(event):
-    print(event)
+    print("Physical player:", event)
 
     loop = asyncio.new_event_loop()
     loop.run_until_complete(set_latest_track_played(sessionmaker))
 
-    if event.data.reason == 2: # If stopped
+    if event.data.reason == 2:  # If stopped
         return
 
     track = loop.run_until_complete(get_current_track(sessionmaker))
     if track:
         player.play(track)
+
+
+@streaming_player.event_callback("end-file")
+def on_end_file_streaming(event):
+    print("Streaming player:", event)
