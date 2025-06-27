@@ -7,6 +7,7 @@ class FFmpegStreamer:
     async def start(self):
         ffmpeg_cmd = [
             "ffmpeg",
+            "-nostdin",
             "-f",
             "alsa",
             "-ac",
@@ -30,6 +31,7 @@ class FFmpegStreamer:
 
         self.proc = await asyncio.create_subprocess_exec(
             *ffmpeg_cmd,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
