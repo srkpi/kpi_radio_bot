@@ -20,7 +20,7 @@ async def proxy_icecast_stream(request: Request):
 
     async def stream_generator():
         try:
-            async for chunk in resp.content.iter_chunked(1024):
+            async for chunk in resp.content.iter_chunked(32768):
                 yield chunk
         finally:
             await resp.release()
