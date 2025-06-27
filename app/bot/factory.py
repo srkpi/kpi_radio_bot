@@ -37,7 +37,7 @@ async def on_startup(bot: Bot) -> None:
         )
 
     await ffmpeg_streamer.start()
-    await asyncio.wait(10)
+    await asyncio.sleep(10)
 
     try:
         await update_statistic(sessionmaker)
