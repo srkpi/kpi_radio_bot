@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ADMINS_MODERATION_THREAD_ID: Optional[int]
     ADMINS_BUGS_THREAD_ID: Optional[int]
     ADMINS_FEEDBACK_THREAD_ID: Optional[int]
+    ADMINS_STREAM_THREAD_ID: Optional[int]
     ADMINS: Optional[list[int]] = None
 
     BASE_URL: AnyUrl = AnyUrl("http://localhost:8000")

@@ -47,7 +47,7 @@ async def on_startup(bot: Bot) -> None:
     await start_current_ether()
     await bot.send_message(
         chat_id=settings.ADMINS_CHAT_ID,
-        message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+        message_thread_id=settings.ADMINS_STREAM_THREAD_ID,
         text=f"Я запустився 🚀🤖⚡️\n\nТранслюю аудіо на: {settings.BASE_URL}stream",
     )
 
