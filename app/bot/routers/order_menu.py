@@ -408,31 +408,44 @@ async def on_ether_selected(
         else:
             decision_label = "✅ Прийнято автоматично"
 
-            current_playing_order: Order = await uow.orders.find_one(
-                Order.ether_id == order.ether_id,
-                Order.played == False,
-                Order.confirmed == True,
-                Order.play_start != None,
-                order=[Order.play_start.desc()],
-            )
+            cur_date = datetime.now().date()
+            cur_time = datetime.now().time()
 
-            ether_not_played_orders: list[Order] = await uow.orders.find(
-                Order.ether_id == order.ether_id,
-                Order.played == False,
-                Order.confirmed == True,
-            )
+            if (
+                ether.ether_date == cur_date
+                and ether.start_time > cur_time
+                and ether.end_time < cur_time
+            ):
+                current_playing_order: Order = await uow.orders.find_one(
+                    Order.ether_id == order.ether_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                    Order.play_start != None,
+                    order=[Order.play_start.desc()],
+                )
 
-            if current_playing_order or len(ether_not_played_orders):
+                ether_not_played_orders: list[Order] = await uow.orders.find(
+                    Order.ether_id == order.ether_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                )
+
+                if current_playing_order or len(ether_not_played_orders):
+                    await callback.message.answer(
+                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"🕓 Орієнтовно програє: {play_time_str}",
+                    )
+                else:
+                    play_now = True
+                    await callback.message.answer(
+                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"🕓 Орієнтовно програє: зараз",
+                    )
+            else:
                 await callback.message.answer(
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
                     f"🕓 Орієнтовно програє: {play_time_str}",
                 )
-            else:
-                await callback.message.answer(
-                    f"✅ Твоє замовлення прийнято: {order.title}\n"
-                    f"🕓 Орієнтовно програє: зараз",
-                )
-                play_now = True
 
         order = await uow.orders.create(
             Order(
