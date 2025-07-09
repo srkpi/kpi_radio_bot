@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 from aiogram import Bot
@@ -21,6 +22,8 @@ day_mapping = {
     "6": "sun",
 }
 
+_play_current_lock = asyncio.Lock()
+
 
 class Scheduler:
     def __init__(self, bot: Bot, async_session: async_sessionmaker[AsyncSession]):
@@ -38,7 +41,7 @@ class Scheduler:
                 start_hour, start_minute = map(int, ether["start"].split(":"))
 
                 self._scheduler.add_job(
-                    self.start_ether,
+                    self.play_current_song,
                     "cron",
                     day_of_week=day_of_week,
                     hour=start_hour,
@@ -58,6 +61,12 @@ class Scheduler:
             "cron",
             hour=22,
             minute=5,
+            args=(self._async_sessionmaker, self._bot),
+        )
+        self._scheduler.add_job(
+            self.auto_recovery,
+            "interval",
+            minutes=1,
             args=(self._async_sessionmaker, self._bot),
         )
         self._scheduler.start()
@@ -88,7 +97,22 @@ class Scheduler:
         )
 
     @staticmethod
-    async def start_ether(async_session: async_sessionmaker[AsyncSession]):
-        track = await get_current_track(async_session)
-        if track:
-            player.play(track)
+    async def play_current_song(async_session: async_sessionmaker[AsyncSession]):
+        async with _play_current_lock:
+            if not player.is_playing:
+                track = await get_current_track(async_session)
+                if track and not player.is_playing:
+                    player.play(track)
+
+                    return True
+
+        return False
+
+    @staticmethod
+    async def auto_recovery(async_session: async_sessionmaker[AsyncSession], bot: Bot):
+        if await Scheduler.play_current_song(async_session):
+            await bot.send_message(
+                settings.ADMINS_CHAT_ID,
+                "💥🔄✅ Автоматично відновлено програвання",
+                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+            )

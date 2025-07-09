@@ -413,8 +413,8 @@ async def on_ether_selected(
 
             if (
                 ether.ether_date == cur_date
-                and ether.start_time > cur_time
-                and ether.end_time < cur_time
+                and ether.start_time < cur_time
+                and ether.end_time > cur_time
             ):
                 current_playing_order: Order = await uow.orders.find_one(
                     Order.ether_id == order.ether_id,
@@ -487,6 +487,9 @@ async def on_ether_selected(
         youtube_music_link = (
             f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
         )
+
+        if decision_label:
+            decision_label += " " + datetime.now().strftime("%H:%M:%S")
 
         order_message = await bot.send_message(
             settings.ADMINS_CHAT_ID,

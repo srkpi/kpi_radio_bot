@@ -53,18 +53,24 @@ class MPVPlayer(mpv.MPV):
 
 class DoubleMPVPlayer:
     def __init__(self, physical_player: MPVPlayer, streaming_player: MPVPlayer):
+        self.last_play = datetime.now()
+        self.is_playing = False
         self.physical_player = physical_player
         self.streaming_player = streaming_player
 
     def play(self, filename):
+        self.is_playing = True
+        self.last_play = datetime.now()
         self.physical_player.play(filename)
         self.streaming_player.play(filename)
 
     def stop(self):
+        self.is_playing = False
         self.physical_player.stop()
         self.streaming_player.stop()
 
     def stop_current(self):
+        self.is_playing = False
         self.physical_player.stop_current()
         self.streaming_player.stop_current()
 
@@ -151,6 +157,8 @@ async def get_current_track(
             order.play_start = datetime.now()
             video_id = order.video_id
 
+            await uow.flush()
+
             song_path = get_song_path(video_id)
             if song_path:
                 return str(song_path)
@@ -193,7 +201,12 @@ def on_end_file(event):
     loop.run_until_complete(set_latest_track_played(sessionmaker))
 
     if event.data.reason == 2:  # If stopped
+        if datetime.now() > player.last_play + timedelta(seconds=10):
+            player.is_playing = False
+
         return
+
+    player.is_playing = False
 
     track = loop.run_until_complete(get_current_track(sessionmaker))
     if track:

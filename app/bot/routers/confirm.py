@@ -101,7 +101,7 @@ async def confirm_order(
                 re.sub(
                     order_count_pattern, increment_approved, callback.message.html_text
                 )
-                + f"\n✅ Прийнято ({callback.from_user.mention_html()})"
+                + f"\n✅ Прийнято ({callback.from_user.mention_html()}) {current_datetime.strftime('%H:%M:%S')}"
             )
             order.confirmed = True
             order.decision_timestamp = current_datetime
@@ -229,12 +229,13 @@ async def decline_order(
             if order.decision_timestamp:
                 return
 
+            current_datetime = datetime.now()
             text = (
                 callback.message.html_text
-                + f"\n❌ Відхилено ({callback.from_user.mention_html()})"
+                + f"\n❌ Відхилено ({callback.from_user.mention_html()}) {current_datetime.strftime('%H:%M:%S')}"
             )
             order.confirmed = False
-            order.decision_timestamp = datetime.now()
+            order.decision_timestamp = current_datetime
             order.decided_by = callback.from_user.id
 
             await uow.flush()

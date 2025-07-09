@@ -20,6 +20,7 @@ from app.bot.routers.commands import (
     send_orders,
     set_temp_volume,
     set_volume,
+    shark,
     start,
     skip,
     stop,
@@ -132,6 +133,11 @@ router.message.register(
 router.message.register(
     traktor,
     Command("traktor"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    shark,
+    Command("shark"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(

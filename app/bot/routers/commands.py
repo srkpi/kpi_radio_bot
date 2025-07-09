@@ -334,7 +334,7 @@ async def stop_all(message: Message, uow: UnitOfWork):
     await message.answer("Чергу зупинено. Всі замовлення видалено!")
 
 
-async def traktor(message: Message, uow: UnitOfWork):
+async def force_play_song(uow: UnitOfWork, filename: str):
     today = datetime.now()
     order = await uow.orders.find_one(
         Ether.ether_date == today.date(),
@@ -351,9 +351,17 @@ async def traktor(message: Message, uow: UnitOfWork):
         order.played = True
         await uow.flush()
 
-    player.play("music/traktor.mp3")
+    player.play(filename)
 
+
+async def traktor(message: Message, uow: UnitOfWork):
+    await force_play_song(uow, "music/traktor.mp3")
     await message.answer("Трактор їде митися!")
+
+
+async def shark(message: Message, uow: UnitOfWork):
+    await force_play_song(uow, "music/shark.mp3")
+    await message.answer("Baby Shark Dance!")
 
 
 async def holiday(message: Message, uow: UnitOfWork):
