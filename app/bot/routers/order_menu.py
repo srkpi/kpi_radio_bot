@@ -417,7 +417,7 @@ async def on_ether_selected(
                 and ether.end_time > cur_time
             ):
                 current_playing_order: Order = await uow.orders.find_one(
-                    Order.ether_id == order.ether_id,
+                    Order.ether_id == ether.id,
                     Order.played == False,
                     Order.confirmed == True,
                     Order.play_start != None,
@@ -425,7 +425,7 @@ async def on_ether_selected(
                 )
 
                 ether_not_played_orders: list[Order] = await uow.orders.find(
-                    Order.ether_id == order.ether_id,
+                    Order.ether_id == ether.id,
                     Order.played == False,
                     Order.confirmed == True,
                 )
