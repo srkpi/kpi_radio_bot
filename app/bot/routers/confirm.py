@@ -11,8 +11,7 @@ from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
 from app.bot.services.song_downloader import add_to_download_queue, get_song_path
 from app.bot.states.alert_state import get_alert_state
-
-from settings import settings
+from app.settings import settings
 
 order_count_pattern = r"\((\d+)/(\d+)\)$"
 order_locks: dict[int, asyncio.Lock] = {}
