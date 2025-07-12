@@ -519,6 +519,12 @@ async def on_ether_selected(
             await add_to_download_queue(video_id)
             return
 
+        await bot.send_message(
+            settings.ADMINS_CHAT_ID,
+            f"Ця пісня поставиться на програвання зараз бо черга порожня! Зараз ймовірно нічого не грає, довжина черги 0. ID етеру: {ether.id}. ID пісні: {order.id}",
+            message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+        )
+
         order.play_start = datetime.now()
 
         song_path = get_song_path(video_id)

@@ -12,6 +12,8 @@ from app.bot.schemas.confirm import ConfirmOrder
 from app.bot.services.song_downloader import add_to_download_queue, get_song_path
 from app.bot.states.alert_state import get_alert_state
 
+from settings import settings
+
 order_count_pattern = r"\((\d+)/(\d+)\)$"
 order_locks: dict[int, asyncio.Lock] = {}
 
@@ -101,7 +103,7 @@ async def confirm_order(
                 re.sub(
                     order_count_pattern, increment_approved, callback.message.html_text
                 )
-                + f"\n✅ Прийнято ({callback.from_user.mention_html()}) {current_datetime.strftime('%H:%M:%S')}"
+                + f"\n✅ Прийнято ({callback.from_user.mention_html()} {current_datetime.strftime('%H:%M:%S')})"
             )
             order.confirmed = True
             order.decision_timestamp = current_datetime
@@ -174,6 +176,12 @@ async def confirm_order(
                         f"✅ Твоє замовлення прийнято: {order.title}\n"
                         f"🕓 Орієнтовно програє: зараз",
                     )
+
+                    await callback.bot.send_message(
+                        settings.ADMINS_CHAT_ID,
+                        f"Ця пісня поставиться на програвання зараз бо черга порожня! Зараз ймовірно нічого не грає, довжина черги 0. ID етеру: {order.ether_id}. ID пісні: {order.id}",
+                        message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+                    )
             else:
                 ether_orders = await uow.orders.find(
                     Order.ether_id == order.ether_id,
@@ -232,7 +240,7 @@ async def decline_order(
             current_datetime = datetime.now()
             text = (
                 callback.message.html_text
-                + f"\n❌ Відхилено ({callback.from_user.mention_html()}) {current_datetime.strftime('%H:%M:%S')}"
+                + f"\n❌ Відхилено ({callback.from_user.mention_html()} {current_datetime.strftime('%H:%M:%S')})"
             )
             order.confirmed = False
             order.decision_timestamp = current_datetime
