@@ -175,12 +175,6 @@ async def confirm_order(
                         f"✅ Твоє замовлення прийнято: {order.title}\n"
                         f"🕓 Орієнтовно програє: зараз",
                     )
-
-                    await callback.bot.send_message(
-                        settings.ADMINS_CHAT_ID,
-                        f"Ця пісня поставиться на програвання зараз бо черга порожня! Зараз ймовірно нічого не грає, довжина черги 0. ID етеру: {order.ether_id}. ID пісні: {order.id}",
-                        message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-                    )
             else:
                 ether_orders = await uow.orders.find(
                     Order.ether_id == order.ether_id,
