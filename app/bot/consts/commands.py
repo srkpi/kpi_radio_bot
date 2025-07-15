@@ -33,4 +33,8 @@ ADMIN_COMMANDS = [
     ),
     BotCommand(command="traktor", description="Їде трактор митися"),
     BotCommand(command="shark", description="Baby Shark Dance"),
+    BotCommand(
+        command="auto_moderation",
+        description="Список пісень автоматичної модерації",
+    ),
 ]

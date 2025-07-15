@@ -39,6 +39,9 @@ with open("filtered_words.txt", "r", encoding="utf-8") as f:
 with open("whitelist.txt", "r", encoding="utf-8") as f:
     WHITELIST_UK = set(f.read().splitlines())
 
+with open("track_blacklist.txt", "r", encoding="utf-8") as f:
+    TRACK_BLACKLIST = set(f.read().splitlines())
+
 
 def detect_language_advanced(title: str) -> str:
     ukrainian_chars = {"є", "і", "ї"}
@@ -233,6 +236,9 @@ async def on_ether_selected(
 
     user_id = callback.from_user.id
     ether_group = selected_ether_group[1]
+
+    not_confimred_orders_duration = 0
+
     for selected_ether in ether_group:
         ether_start_hour, ether_start_minute = map(
             int, selected_ether["start"].split(":")
@@ -275,7 +281,9 @@ async def on_ether_selected(
                 if user_order.confirmed:
                     user_approved_orders += 1
 
-            total_duration = sum(o.duration for o in ether_orders)
+            confirmed_orders_duration = sum(o.duration for o in ether_orders_1)
+            not_confimred_orders_duration = sum(o.duration for o in ether_orders_2)
+            total_duration = confirmed_orders_duration + not_confimred_orders_duration
 
             now = datetime.now()
             if now.date() == ether.ether_date and now.time() > ether.start_time:
@@ -297,6 +305,8 @@ async def on_ether_selected(
                 play_time = now + timedelta(seconds=total_duration)
             else:
                 play_delay = 5 * len(ether_orders)
+                not_confimred_orders_duration += 5 * len(ether_orders_2)
+
                 play_time = datetime.combine(
                     ether.ether_date, ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)
@@ -360,20 +370,23 @@ async def on_ether_selected(
         confirmation_status = None
 
         moderation_flag = ""
-        if rating > 2:
+        if rating < -2 or video_id in TRACK_BLACKLIST:
+            moderation_flag = "🔴 "
+            cancel_reason = (
+                "у блеклісті" if video_id in TRACK_BLACKLIST else "часто відхиляють"
+            )
+
+            if not settings.ADMINS or user_id not in settings.ADMINS:
+                confirmation_status = False
+                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворонтого зв'язку!"
+                decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
+        elif rating > 2:
             moderation_flag = "🟢 "
 
             if user_orders <= 2:
                 confirmation_status = True
             elif is_long_ether and user_orders <= 5:
                 confirmation_status = True
-        elif rating < -2:
-            moderation_flag = "🔴 "
-
-            if not settings.ADMINS or user_id not in settings.ADMINS:
-                confirmation_status = False
-                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворонтого зв'язку!"
-                decision_label = "🚫 Відхлилено автоматично (часто відхиляють)"
 
         if same_ether_orders and not is_long_ether:
             same_ether_orders.sort(key=lambda x: x.expected_play_time, reverse=True)
@@ -394,9 +407,7 @@ async def on_ether_selected(
                 )
                 cancel_text += f"Почне грати о {scheduled_play_time_str}"
 
-            decision_label = (
-                "🚫 Відхлилено автоматично (вже замовлено, НЕ вечірній етер, НЕ вихідний)"
-            )
+            decision_label = "🚫 Відхлилено автоматично (вже замовлено, НЕ вечірній етер, НЕ вихідний)"
             confirmation_status = False
 
         play_now = False
@@ -408,8 +419,23 @@ async def on_ether_selected(
         else:
             decision_label = "✅ Прийнято автоматично"
 
-            cur_date = datetime.now().date()
-            cur_time = datetime.now().time()
+            play_time -= timedelta(seconds=not_confimred_orders_duration)
+            play_time_str = play_time.strftime("%H:%M")
+
+            current_datetime = datetime.now()
+            cur_date = current_datetime.date()
+            cur_time = current_datetime.time()
+
+            ether_date = ether.ether_date
+
+            if ether_date == cur_date:
+                play_date_str = "сьогодні"
+            elif ether_date == (current_datetime + timedelta(days=1)).date():
+                play_date_str = "завтра"
+            elif ether_date == (current_datetime + timedelta(days=2)).date():
+                play_date_str = "післязавтра"
+            else:
+                play_date_str = ether.ether_date.strftime("%d.%m")
 
             if (
                 ether.ether_date == cur_date
@@ -433,7 +459,7 @@ async def on_ether_selected(
                 if current_playing_order or len(ether_not_played_orders):
                     await callback.message.answer(
                         f"✅ Твоє замовлення прийнято: {order.title}\n"
-                        f"🕓 Орієнтовно програє: {play_time_str}",
+                        f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                     )
                 else:
                     play_now = True
@@ -444,7 +470,7 @@ async def on_ether_selected(
             else:
                 await callback.message.answer(
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
-                    f"🕓 Орієнтовно програє: {play_time_str}",
+                    f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                 )
 
         order = await uow.orders.create(

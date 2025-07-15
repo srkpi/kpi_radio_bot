@@ -154,7 +154,7 @@ async def confirm_order(
                     await callback.bot.send_message(
                         callback_data.user_id,
                         f"✅ Твоє замовлення прийнято: {order.title}\n"
-                        f"🕓 Орієнтовно програє: {play_time_str}",
+                        f"🕓 Орієнтовно програє: сьогодні {play_time_str}",
                     )
                 else:
                     play_time = datetime.now()
@@ -193,10 +193,21 @@ async def confirm_order(
                 play_time_str = play_time.strftime("%H:%M")
                 order.expected_play_time = play_time
 
+                ether_date = order_ether.ether_date
+
+                if ether_date == current_datetime.date():
+                    play_date_str = "сьогодні"
+                elif ether_date == (current_datetime + timedelta(days=1)).date():
+                    play_date_str = "завтра"
+                elif ether_date == (current_datetime + timedelta(days=2)).date():
+                    play_date_str = "післязавтра"
+                else:
+                    play_date_str = order_ether.ether_date.strftime("%d.%m")
+
                 await callback.bot.send_message(
                     callback_data.user_id,
                     f"✅ Твоє замовлення прийнято: {order.title}\n"
-                    f"🕓 Орієнтовно програє: {play_time_str}",
+                    f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                 )
 
             await uow.flush()

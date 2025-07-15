@@ -11,6 +11,7 @@ from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
 from app.bot.routers.commands import (
     alert,
+    auto_moderation_list,
     ban,
     ban_list,
     cancel,
@@ -104,6 +105,7 @@ router.message.register(
     F.message_thread_id == settings.ADMINS_MODERATION_THREAD_ID,
     F.text,
 )
+
 router.message.register(
     ban,
     Command("ban"),
@@ -120,6 +122,7 @@ router.message.register(
     Command("ban_list"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
+
 router.message.register(
     send_orders,
     Command("send_orders"),
@@ -131,6 +134,12 @@ router.message.register(
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(
+    auto_moderation_list,
+    Command("auto_moderation"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+
+router.message.register(
     traktor,
     Command("traktor"),
     F.chat.id == settings.ADMINS_CHAT_ID,
@@ -140,11 +149,13 @@ router.message.register(
     Command("shark"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
+
 router.message.register(
     restart,
     Command("restart"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
+
 router.message.register(
     force_play,
     Command("force_play"),
@@ -155,6 +166,7 @@ router.message.register(
     Command("force_playlist"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
+
 router.message.register(
     admin_feedback_reply_handler,
     F.chat.id == settings.ADMINS_CHAT_ID,

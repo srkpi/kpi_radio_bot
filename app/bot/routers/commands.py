@@ -23,7 +23,12 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player, physical_player
 from app.bot.repositories.uow import UnitOfWork
-from app.bot.routers.order_menu import has_time_passed, search_song_by_url, ytmusic, remove_brackets
+from app.bot.routers.order_menu import (
+    has_time_passed,
+    search_song_by_url,
+    ytmusic,
+    remove_brackets,
+)
 from app.bot.services.feedback import get_user_message_id
 from app.bot.services.song_downloader import (
     add_to_download_queue,
@@ -770,6 +775,89 @@ async def send_orders(message: Message, uow: UnitOfWork):
 
     await message.reply_document(
         document=BufferedInputFile(file=buffer.getvalue(), filename="orders.xlsx")
+    )
+
+
+async def auto_moderation_list(message: Message, uow: UnitOfWork):
+    await uow.flush()
+
+    conn = sqlite3.connect("radio.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        WITH stats AS (
+            SELECT
+                video_id,
+                MAX(title) AS title,
+                MAX(duration) AS duration,
+                SUM(CASE WHEN confirmed = 1 THEN 1 ELSE 0 END) AS confirmed,
+                SUM(CASE WHEN confirmed = 0 AND decided_by <> 0 THEN 1 ELSE 0 END) AS rejected,
+                SUM(
+                    CASE
+                        WHEN confirmed = 1 THEN  1
+                        WHEN confirmed = 0 AND decided_by <> 0 THEN -1
+                        ELSE 0
+                    END
+                ) AS rating
+            FROM orders
+            GROUP BY video_id
+        )
+        SELECT
+            video_id,
+            title,
+            duration,
+            confirmed,
+            rejected,
+            rating
+        FROM stats
+        WHERE rating > 2 OR rating < -2
+        ORDER BY ABS(rating) ASC;
+        """
+    )
+    orders_columns = [desc[0] for desc in cursor.description]
+    orders_rows = cursor.fetchall()
+
+    conn.close()
+
+    buffer = io.BytesIO()
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    autoapproved_ws = wb.create_sheet(title="Approve")
+    autorejected_ws = wb.create_sheet(title="Reject")
+
+    autoapproved_ws.append(orders_columns)
+    autorejected_ws.append(orders_columns)
+
+    for row in orders_rows:
+        if row[5] > 2:
+            autoapproved_ws.append(row)
+        else:
+            autorejected_ws.append(row)
+
+    autoapproved_ws.freeze_panes = "A2"
+    autorejected_ws.freeze_panes = "A2"
+
+    for col_idx, column in enumerate(orders_columns, 1):
+        col_values = [
+            str(row[col_idx - 1]) for row in orders_rows if row[col_idx - 1] is not None
+        ]
+        max_length = max([len(str(column))] + [len(val) for val in col_values])
+
+        autoapproved_ws.column_dimensions[
+            autoapproved_ws.cell(row=1, column=col_idx).column_letter
+        ].width = (max_length + 2)
+
+        autorejected_ws.column_dimensions[
+            autorejected_ws.cell(row=1, column=col_idx).column_letter
+        ].width = (max_length + 2)
+
+    wb.save(buffer)
+    buffer.seek(0)
+
+    await message.reply_document(
+        document=BufferedInputFile(file=buffer.getvalue(), filename="auto-moderation.xlsx")
     )
 
 
