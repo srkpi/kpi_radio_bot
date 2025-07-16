@@ -509,7 +509,7 @@ async def on_ether_selected(
         else:
             duration_label = ""
 
-        youtube_url = f"https://youtube.com/watch?v={video_id}"
+        youtube_url = f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
         youtube_music_link = (
             f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
         )
@@ -520,7 +520,6 @@ async def on_ether_selected(
         order_message = await bot.send_message(
             settings.ADMINS_CHAT_ID,
             f"{moderation_flag}{language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
-            "Замовлення:\n"
             f"{WEEKDAYS[ether.ether_date.weekday()]}, {ether.name}\n{duration_label}"
             f"🕓 {play_time_str}\n"
             f"від {callback.from_user.mention_html()} ({user_approved_orders}/{user_orders})\n"
