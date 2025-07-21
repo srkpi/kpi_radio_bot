@@ -104,12 +104,10 @@ def mpv_log(loglevel: str, component: str, message: str) -> None:
 
 physical_player = MPVPlayer(
     ytdl=True,
-    audio_device="alsa/hw:2,0",
     log_handler=mpv_log,
     input_default_bindings=True,
     video=False,
     cache=False,
-    audio_channels="stereo",
 )
 
 streaming_player = MPVPlayer(
