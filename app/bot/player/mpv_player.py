@@ -32,19 +32,19 @@ class MPVPlayer(mpv.MPV):
             **extra_mpv_opts,
         )
         self.constant_volume = 100
-        self.volume = 100
+        self.set_property("volume", 100)
 
     def set_volume(self, volume: int):
         assert 0 <= volume <= 100
-        self.volume = volume
+        self.set_property("volume", volume)
         self.constant_volume = volume
 
     def set_temp_volume(self, volume: int):
         assert 0 <= volume <= 100
-        self.volume = volume
+        self.set_property("volume", volume)
 
     def play(self, filename):
-        self.volume = self.constant_volume
+        self.set_property("volume", self.constant_volume)
         super().play(filename)
 
     def stop_current(self):
