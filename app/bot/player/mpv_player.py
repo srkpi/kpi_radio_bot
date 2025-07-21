@@ -31,20 +31,8 @@ class MPVPlayer(mpv.MPV):
             loglevel=loglevel,
             **extra_mpv_opts,
         )
-        self.constant_volume = 100
-        self.set_property("volume", 100)
-
-    def set_volume(self, volume: int):
-        assert 0 <= volume <= 100
-        self.set_property("volume", volume)
-        self.constant_volume = volume
-
-    def set_temp_volume(self, volume: int):
-        assert 0 <= volume <= 100
-        self.set_property("volume", volume)
 
     def play(self, filename):
-        self.set_property("volume", self.constant_volume)
         super().play(filename)
 
     def stop_current(self):
@@ -58,9 +46,16 @@ class DoubleMPVPlayer:
         self.physical_player = physical_player
         self.streaming_player = streaming_player
 
+        self.constant_volume = 100
+        self.volume = 100
+
     def play(self, filename):
         self.is_playing = True
         self.last_play = datetime.now()
+
+        physical_player.volume = self.constant_volume
+        streaming_player.volume = self.constant_volume
+
         self.physical_player.play(filename)
         self.streaming_player.play(filename)
 
@@ -73,6 +68,19 @@ class DoubleMPVPlayer:
         self.is_playing = False
         self.physical_player.stop_current()
         self.streaming_player.stop_current()
+
+    def set_volume(self, volume: int):
+        assert 0 <= volume <= 100
+        self.volume = 100
+        self.constant_volume = volume
+        physical_player.volume = volume
+        streaming_player.volume = volume
+
+    def set_temp_volume(self, volume: int):
+        assert 0 <= volume <= 100
+        self.volume = 100
+        physical_player.volume = volume
+        streaming_player.volume = volume
 
 
 async def mpv_log_error(component: str, message: str) -> None:
