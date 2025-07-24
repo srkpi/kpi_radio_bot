@@ -1,3 +1,4 @@
+import html
 import re
 import asyncio
 from datetime import datetime, timedelta
@@ -111,6 +112,8 @@ async def confirm_order(
             video_id = order.video_id
             download_song = True
 
+            order_title = html.escape(order.title)
+
             if (
                 order_ether.ether_date == current_datetime.date()
                 and current_datetime.time() > order_ether.start_time
@@ -153,7 +156,7 @@ async def confirm_order(
 
                     await callback.bot.send_message(
                         callback_data.user_id,
-                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"✅ Твоє замовлення прийнято: {order_title}\n"
                         f"🕓 Орієнтовно програє: сьогодні {play_time_str}",
                     )
                 else:
@@ -172,7 +175,7 @@ async def confirm_order(
 
                     await callback.bot.send_message(
                         callback_data.user_id,
-                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"✅ Твоє замовлення прийнято: {order_title}\n"
                         f"🕓 Орієнтовно програє: зараз",
                     )
             else:
@@ -206,7 +209,7 @@ async def confirm_order(
 
                 await callback.bot.send_message(
                     callback_data.user_id,
-                    f"✅ Твоє замовлення прийнято: {order.title}\n"
+                    f"✅ Твоє замовлення прийнято: {order_title}\n"
                     f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                 )
 

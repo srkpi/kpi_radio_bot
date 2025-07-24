@@ -14,14 +14,15 @@ from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 from sqlalchemy.orm import joinedload, selectinload
 
-from aiogram.types import BufferedInputFile
+from aiogram.types import BufferedInputFile, FSInputFile
 
 from app.api.routes.alert import clear_queue_alert
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.models import Ether, Order
+from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
-from app.bot.player.mpv_player import player, physical_player
+from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.order_menu import (
     has_time_passed,
@@ -818,6 +819,23 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
     orders_columns = [desc[0] for desc in cursor.description]
     orders_rows = cursor.fetchall()
 
+    cursor.execute(
+        """
+        SELECT video_id, confirm, set_by, timestamp
+        FROM auto_moderation
+        WHERE is_deleted = FALSE
+        ORDER BY
+        CASE
+            WHEN confirm IS NULL THEN 1
+            WHEN confirm = TRUE THEN 2
+            WHEN confirm = FALSE THEN 3
+            ELSE 4
+        END;
+        """
+    )
+    lists_columns = [desc[0] for desc in cursor.description]
+    lists_rows = cursor.fetchall()
+
     conn.close()
 
     buffer = io.BytesIO()
@@ -826,9 +844,11 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
 
     autoapproved_ws = wb.create_sheet(title="Approve")
     autorejected_ws = wb.create_sheet(title="Reject")
+    lists_ws = wb.create_sheet(title="Custom")
 
     autoapproved_ws.append(orders_columns)
     autorejected_ws.append(orders_columns)
+    lists_ws.append(lists_columns)
 
     for row in orders_rows:
         if row[5] > 2:
@@ -836,8 +856,12 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
         else:
             autorejected_ws.append(row)
 
+    for row in lists_rows:
+        lists_ws.append(row)
+
     autoapproved_ws.freeze_panes = "A2"
     autorejected_ws.freeze_panes = "A2"
+    lists_ws.freeze_panes = "A2"
 
     for col_idx, column in enumerate(orders_columns, 1):
         col_values = [
@@ -853,11 +877,23 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
             autorejected_ws.cell(row=1, column=col_idx).column_letter
         ].width = (max_length + 2)
 
+    for col_idx, column in enumerate(lists_columns, 1):
+        col_values = [
+            str(row[col_idx - 1]) for row in lists_rows if row[col_idx - 1] is not None
+        ]
+        max_length = max([len(str(column))] + [len(val) for val in col_values])
+
+        lists_ws.column_dimensions[
+            lists_ws.cell(row=1, column=col_idx).column_letter
+        ].width = (max_length + 2)
+
     wb.save(buffer)
     buffer.seek(0)
 
     await message.reply_document(
-        document=BufferedInputFile(file=buffer.getvalue(), filename="auto-moderation.xlsx")
+        document=BufferedInputFile(
+            file=buffer.getvalue(), filename="auto-moderation.xlsx"
+        )
     )
 
 
@@ -903,6 +939,136 @@ async def send_database(message: Message, uow: UnitOfWork):
 
     await message.reply_document(
         document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
+    )
+
+
+async def send_database_sql(message: Message, uow: UnitOfWork):
+    await uow.flush()
+    await message.reply_document(document=FSInputFile("radio.db"))
+
+
+async def blacklist(message: Message, uow: UnitOfWork):
+    video_id = get_text_after_command(message)
+
+    if not video_id:
+        await message.reply("Невірний формат команди! /blacklist video_id")
+        return
+
+    if len(video_id) != 11:
+        await message.reply("Невірне id відео!")
+        return
+
+    record = await uow.auto_moderation.find_one(
+        AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
+    )
+
+    if record and record.confirm == False:
+        await message.reply("Це відео вже в blacklist!")
+        return
+
+    if record:
+        record.is_deleted = True
+
+    await uow.auto_moderation.create(AutoModeration(video_id=video_id, confirm=False, set_by=message.from_user.id, timestamp=datetime.now()))
+    await uow.flush()
+
+    await message.reply(
+        f"Відео з id <code>{video_id}</code> внесено в blacklist!", parse_mode="HTML"
+    )
+
+
+async def whitelist(message: Message, uow: UnitOfWork):
+    video_id = get_text_after_command(message)
+
+    if not video_id:
+        await message.reply("Невірний формат команди! /whitelist video_id")
+        return
+
+    if len(video_id) != 11:
+        await message.reply("Невірне id відео!")
+        return
+
+    record = await uow.auto_moderation.find_one(
+        AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
+    )
+
+    if record and record.confirm == True:
+        await message.reply("Це відео вже в whitelist!")
+        return
+
+    if record:
+        record.is_deleted = True
+
+    await uow.auto_moderation.create(AutoModeration(video_id=video_id, confirm=True, set_by=message.from_user.id, timestamp=datetime.now()))
+    await uow.flush()
+
+    await message.reply(
+        f"Відео з id <code>{video_id}</code> внесено в whitelist!", parse_mode="HTML"
+    )
+
+
+async def manual_list(message: Message, uow: UnitOfWork):
+    video_id = get_text_after_command(message)
+
+    if not video_id:
+        await message.reply("Невірний формат команди! /manual_list video_id")
+        return
+
+    if len(video_id) != 11:
+        await message.reply("Невірне id відео!")
+        return
+
+    record = await uow.auto_moderation.find_one(
+        AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
+    )
+
+    if record and record.confirm == None:
+        await message.reply("Це відео вже в manual list!")
+        return
+
+    if record:
+        record.is_deleted = True
+
+    await uow.auto_moderation.create(
+        AutoModeration(
+            video_id=video_id,
+            confirm=None,
+            set_by=message.from_user.id,
+            timestamp=datetime.now(),
+        )
+    )
+    await uow.flush()
+
+    await message.reply(
+        f"Відео з id <code>{video_id}</code> внесено в manual list!", parse_mode="HTML"
+    )
+
+
+async def remove_lists(message: Message, uow: UnitOfWork):
+    video_id = get_text_after_command(message)
+
+    if not video_id:
+        await message.reply("Невірний формат команди! /remove_lists video_id")
+        return
+
+    if len(video_id) != 11:
+        await message.reply("Невірне id відео!")
+        return
+
+    record = await uow.auto_moderation.find_one(
+        AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
+    )
+
+    if not record:
+        await message.reply("Для цього відео не задано жодних варіантів автомодерації!")
+        return
+
+    record.is_deleted = True
+
+    await uow.flush()
+
+    await message.reply(
+        f"Відео з id <code>{video_id}</code> видалено зі списків автомодерації!", parse_mode="HTML"
     )
 
 

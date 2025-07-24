@@ -4,6 +4,7 @@ from typing import Type
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.models import Base
+from app.bot.repositories.auto_moderation import AutoModerationRepository
 from app.bot.repositories.banned_user import BannedUserRepository
 from app.bot.repositories.day_state import DayStateRepository
 from app.bot.repositories.ether import EtherRepository
@@ -17,6 +18,7 @@ class UnitOfWork:
     orders: OrderRepository
     day_state: DayStateRepository
     banned_users: BannedUserRepository
+    auto_moderation: AutoModerationRepository
 
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -24,6 +26,7 @@ class UnitOfWork:
         self.orders = OrderRepository(self._session)
         self.day_state = DayStateRepository(self._session)
         self.banned_users = BannedUserRepository(self._session)
+        self.auto_moderation = AutoModerationRepository(self._session)
 
     async def __aenter__(self):
         return self

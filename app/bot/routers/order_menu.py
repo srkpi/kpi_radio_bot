@@ -1,3 +1,4 @@
+import html
 import operator
 from datetime import date, datetime, timedelta, time
 from urllib.parse import urlparse, parse_qs
@@ -19,6 +20,7 @@ from app.bot.consts.ethers import SCHEDULE
 from app.bot.consts.other import WEEKDAYS
 from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Ether, Order
+from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
@@ -38,9 +40,6 @@ with open("filtered_words.txt", "r", encoding="utf-8") as f:
 
 with open("whitelist.txt", "r", encoding="utf-8") as f:
     WHITELIST_UK = set(f.read().splitlines())
-
-with open("track_blacklist.txt", "r", encoding="utf-8") as f:
-    TRACK_BLACKLIST = set(f.read().splitlines())
 
 
 def detect_language_advanced(title: str) -> str:
@@ -369,19 +368,36 @@ async def on_ether_selected(
 
         confirmation_status = None
 
+        order_title = html.escape(manager.dialog_data["audio"]["title"])
+        auto_moderation_choice = await uow.auto_moderation.find_one(
+            AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
+        )
+
         moderation_flag = ""
-        if rating < -2 or video_id in TRACK_BLACKLIST:
+
+        if auto_moderation_choice and auto_moderation_choice.confirm is None:
+            moderation_flag = "🟨 "
+        elif auto_moderation_choice and auto_moderation_choice.confirm == False:
+            moderation_flag = "🟥 "
+            cancel_reason = "у блеклісті"
+            if not settings.ADMINS or user_id not in settings.ADMINS:
+                confirmation_status = False
+                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
+                decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
+        elif rating < -2:
             moderation_flag = "🔴 "
-            cancel_reason = (
-                "у блеклісті" if video_id in TRACK_BLACKLIST else "часто відхиляють"
-            )
+            cancel_reason = "часто відхиляють"
 
             if not settings.ADMINS or user_id not in settings.ADMINS:
                 confirmation_status = False
-                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворонтого зв'язку!"
+                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
                 decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
-        elif rating > 2:
-            moderation_flag = "🟢 "
+        elif rating > 2 or (auto_moderation_choice and auto_moderation_choice.confirm):
+            moderation_flag = (
+                "🟩 "
+                if auto_moderation_choice and auto_moderation_choice.confirm == True
+                else "🟢 "
+            )
 
             if user_orders <= 2:
                 confirmation_status = True
@@ -417,6 +433,7 @@ async def on_ether_selected(
         elif confirmation_status == False:
             await callback.message.answer(cancel_text)
         else:
+            user_approved_orders += 1
             decision_label = "✅ Прийнято автоматично"
 
             play_time -= timedelta(seconds=not_confimred_orders_duration)
@@ -458,18 +475,18 @@ async def on_ether_selected(
 
                 if current_playing_order or len(ether_not_played_orders):
                     await callback.message.answer(
-                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"✅ Твоє замовлення прийнято: {order_title}\n"
                         f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                     )
                 else:
                     play_now = True
                     await callback.message.answer(
-                        f"✅ Твоє замовлення прийнято: {order.title}\n"
+                        f"✅ Твоє замовлення прийнято: {order_title}\n"
                         f"🕓 Орієнтовно програє: зараз",
                     )
             else:
                 await callback.message.answer(
-                    f"✅ Твоє замовлення прийнято: {order.title}\n"
+                    f"✅ Твоє замовлення прийнято: {order_title}\n"
                     f"🕓 Орієнтовно програє: {play_date_str} {play_time_str}",
                 )
 

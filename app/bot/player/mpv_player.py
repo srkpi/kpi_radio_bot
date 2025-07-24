@@ -71,14 +71,13 @@ class DoubleMPVPlayer:
 
     def set_volume(self, volume: int):
         assert 0 <= volume <= 100
-        self.volume = 100
+        self.volume = volume
         self.constant_volume = volume
         physical_player.volume = volume
         streaming_player.volume = volume
 
     def set_temp_volume(self, volume: int):
         assert 0 <= volume <= 100
-        self.volume = 100
         physical_player.volume = volume
         streaming_player.volume = volume
 

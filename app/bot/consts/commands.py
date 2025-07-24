@@ -25,6 +25,9 @@ ADMIN_COMMANDS = [
     BotCommand(command="ban_list", description="Вивести список заблокованих юзерів"),
     BotCommand(command="send_orders", description="Надіслати таблицю з замовленнями"),
     BotCommand(command="send_database", description="Надіслати всю базу даних"),
+    BotCommand(
+        command="send_database_sql", description="Надіслати всю базу даних SQL файлом"
+    ),
     BotCommand(command="restart", description="Перезавантажити бота"),
     BotCommand(command="force_play", description="Примусове програвання пісня (+ url)"),
     BotCommand(
@@ -36,5 +39,15 @@ ADMIN_COMMANDS = [
     BotCommand(
         command="auto_moderation",
         description="Список пісень автоматичної модерації",
+    ),
+    BotCommand(command="whitelist", description="Додати пісню до whitelist (+ id)"),
+    BotCommand(command="blacklist", description="Додати пісню до blacklist (+ id)"),
+    BotCommand(
+        command="manual_list",
+        description="Додати пісню до завжди ручного модерування (+ id)",
+    ),
+    BotCommand(
+        command="remove_lists",
+        description="Прибрати пісню зі списків модерування (+ id)",
     ),
 ]

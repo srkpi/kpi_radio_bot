@@ -14,10 +14,14 @@ from app.bot.routers.commands import (
     auto_moderation_list,
     ban,
     ban_list,
+    blacklist,
     cancel,
     help_command,
+    manual_list,
+    remove_lists,
     restart,
     send_database,
+    send_database_sql,
     send_orders,
     set_temp_volume,
     set_volume,
@@ -36,6 +40,7 @@ from app.bot.routers.commands import (
     unholiday,
     force_play,
     force_playlist,
+    whitelist,
 )
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
@@ -131,6 +136,31 @@ router.message.register(
 router.message.register(
     send_database,
     Command("send_database"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    send_database_sql,
+    Command("send_database_sql"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    manual_list,
+    Command("manual_list"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    whitelist,
+    Command("whitelist"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    blacklist,
+    Command("blacklist"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    remove_lists,
+    Command("remove_lists"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(
