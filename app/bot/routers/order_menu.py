@@ -59,25 +59,25 @@ def detect_language_advanced(title: str) -> str:
     return "ru"
 
 
-def extract_youtube_video_id(url) -> str | None:
-    patterns = [
-        r"(?:youtube\.com/watch\?v=|music\.youtube\.com/watch\?v=)",  # youtube.com or music.youtube.com
-        r"youtu\.be/",  # youtu.be
-    ]
-
+def extract_youtube_video_id(url: str) -> str | None:
     parsed_url = urlparse(url)
+    netloc = parsed_url.netloc.lower()
+    path = parsed_url.path
+    query = parsed_url.query
 
-    if parsed_url.netloc == "youtu.be":
-        return parsed_url.path.strip("/")
+    # Handle youtu.be/<video_id>
+    if "youtu.be" in netloc:
+        return path.strip("/")
 
-    if "youtube.com" in parsed_url.netloc or "music.youtube.com" in parsed_url.netloc:
-        query_params = parse_qs(parsed_url.query)
-        return query_params.get("v", [None])[0]
+    # Handle youtube.com/watch?v=<video_id> or music.youtube.com/watch?v=<video_id>
+    if "youtube.com" in netloc:
+        query_params = parse_qs(query)
+        if "v" in query_params:
+            return query_params["v"][0]
 
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
+    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
+    if match:
+        return match.group(1)
 
     return None
 

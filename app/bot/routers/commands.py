@@ -25,6 +25,7 @@ from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.order_menu import (
+    extract_youtube_video_id,
     has_time_passed,
     search_song_by_url,
     ytmusic,
@@ -955,8 +956,10 @@ async def blacklist(message: Message, uow: UnitOfWork):
         return
 
     if len(video_id) != 11:
-        await message.reply("Невірне id відео!")
-        return
+        video_id = extract_youtube_video_id(video_id)
+        if video_id is None:
+            await message.reply("Невірне id відео або посилання!")
+            return
 
     record = await uow.auto_moderation.find_one(
         AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
@@ -985,8 +988,10 @@ async def whitelist(message: Message, uow: UnitOfWork):
         return
 
     if len(video_id) != 11:
-        await message.reply("Невірне id відео!")
-        return
+        video_id = extract_youtube_video_id(video_id)
+        if video_id is None:
+            await message.reply("Невірне id відео або посилання!")
+            return
 
     record = await uow.auto_moderation.find_one(
         AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
@@ -1015,8 +1020,10 @@ async def manual_list(message: Message, uow: UnitOfWork):
         return
 
     if len(video_id) != 11:
-        await message.reply("Невірне id відео!")
-        return
+        video_id = extract_youtube_video_id(video_id)
+        if video_id is None:
+            await message.reply("Невірне id відео або посилання!")
+            return
 
     record = await uow.auto_moderation.find_one(
         AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
@@ -1052,8 +1059,10 @@ async def remove_lists(message: Message, uow: UnitOfWork):
         return
 
     if len(video_id) != 11:
-        await message.reply("Невірне id відео!")
-        return
+        video_id = extract_youtube_video_id(video_id)
+        if video_id is None:
+            await message.reply("Невірне id відео або посилання!")
+            return
 
     record = await uow.auto_moderation.find_one(
         AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
