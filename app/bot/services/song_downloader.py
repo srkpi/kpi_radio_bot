@@ -1,6 +1,8 @@
 import asyncio
+import time
 from pathlib import Path
 from typing import Optional
+
 from yt_dlp import YoutubeDL
 
 
@@ -11,7 +13,22 @@ _queue = asyncio.Queue()
 _active_downloads = set()
 
 
-async def _process_queue():
+def delete_old_songs(delta: int) -> None:
+    cutoff = time.time() - delta
+    for file in download_dir.iterdir():
+        if file.is_file():
+            try:
+                ctime = file.stat().st_ctime
+                if ctime < cutoff:
+                    file.unlink(missing_ok=True)
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
+
+
+delete_old_songs(48 * 3600)
+
+
+async def _process_queue() -> None:
     while True:
         video_id = await _queue.get()
         await download_song(video_id)
@@ -71,11 +88,11 @@ async def download_song(video_id: str) -> Optional[Path]:
     return get_song_path(video_id)
 
 
-async def add_to_download_queue(video_id: str):
+async def add_to_download_queue(video_id: str) -> None:
     await _queue.put(video_id)
 
 
-def delete_song(video_id: str):
+def delete_song(video_id: str) -> None:
     path = get_song_path(video_id)
     if path:
         path.unlink(missing_ok=True)
