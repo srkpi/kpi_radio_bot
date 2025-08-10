@@ -2,7 +2,7 @@ import html
 from datetime import datetime, timedelta
 
 from aiogram_dialog import Dialog, Window, DialogManager
-from aiogram_dialog.widgets.kbd import Start, Button, Group
+from aiogram_dialog.widgets.kbd import Start, Button, Group, Row
 from aiogram_dialog.widgets.text import Jinja, Const
 
 from app.bot.models import Order
@@ -54,6 +54,14 @@ async def today_handler(
     await dialog_manager.update({"selected_date": datetime.now().date().isoformat()})
 
 
+async def select_ether_handler(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    idx = int(button.widget_id.split("_")[-1])
+    dialog_manager.dialog_data["selected_ether_idx"] = idx
+    await dialog_manager.update(dialog_manager.dialog_data)
+
+
 async def get_data(dialog_manager: DialogManager, **kwargs):
     uow: UnitOfWork = dialog_manager.middleware_data["uow"]
 
@@ -93,8 +101,24 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         order=[Ether.start_time.asc()],
     )
 
+    ether_buttons = None
+    selected_ether_idx = dialog_manager.dialog_data.get("selected_ether_idx", 0)
+    if (
+        len(ethers) == 2
+        and ethers[0].name == "Ранково-денний етер"
+        and ethers[1].name == "Вечірній етер"
+    ):
+        ethers_to_show = [ethers[selected_ether_idx]]
+        ether_buttons = []
+        for i in range(2):
+            label = f"[ {i+1} ]" if i == selected_ether_idx else f"{i+1}"
+            ether_buttons.append({"label": label, "id": f"ether_{i}"})
+    else:
+        ethers_to_show = ethers
+        dialog_manager.dialog_data.pop("selected_ether_idx", None)
+
     ethers_info = ""
-    for ether in ethers:
+    for ether in ethers_to_show:
         orders_string = ""
         orders = [
             order for order in ether.orders if order.expected_play_time is not None
@@ -145,12 +169,29 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         "ethers": ethers_info,
         "selected_date": selected_date.isoformat(),
         "today": today.isoformat(),
+        "ether_buttons": ether_buttons,
     }
 
 
 player_menu = Dialog(
     Window(
         Jinja("{{ header|safe }}\n{{ ethers|safe }}"),
+        Row(
+            *[
+                Button(
+                    Jinja("{{ ether_buttons[0]['label'] if ether_buttons else '' }}"),
+                    id="ether_0",
+                    when=lambda data, widget, manager: data.get("ether_buttons"),
+                    on_click=select_ether_handler,
+                ),
+                Button(
+                    Jinja("{{ ether_buttons[1]['label'] if ether_buttons else '' }}"),
+                    id="ether_1",
+                    when=lambda data, widget, manager: data.get("ether_buttons"),
+                    on_click=select_ether_handler,
+                ),
+            ]
+        ),
         Group(
             Button(
                 Const("<----"),
