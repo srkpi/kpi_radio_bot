@@ -119,7 +119,7 @@ physical_player = MPVPlayer(
 
 streaming_player = MPVPlayer(
     ytdl=True,
-    audio_device="alsa/Loopback,0",
+    audio_device="alsa/plughw:CARD=Loopback,DEV=0",
     log_handler=mpv_log,
     input_default_bindings=True,
     video=False,
