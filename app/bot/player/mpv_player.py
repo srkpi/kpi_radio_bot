@@ -3,7 +3,7 @@ import mpv
 import threading
 
 from aiogram import Bot
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from typing import Optional
 
@@ -119,7 +119,7 @@ physical_player = MPVPlayer(
 
 streaming_player = MPVPlayer(
     ytdl=True,
-    audio_device="alsa/hw:3,0",
+    audio_device="alsa/Loopback,0",
     log_handler=mpv_log,
     input_default_bindings=True,
     video=False,
@@ -129,6 +129,25 @@ streaming_player = MPVPlayer(
 
 player = DoubleMPVPlayer(physical_player, streaming_player)
 
+announcement_file_path = "music/announcement.mp3"
+_last_announcement_played: set[tuple[date, int]] = set()
+
+
+def _is_announcement_time(
+    now: datetime, margin: timedelta = timedelta(minutes=5)
+) -> bool:
+    hour = now.hour
+
+    if not (9 <= hour <= 21):
+        return False
+
+    target = now.replace(minute=30, second=0, microsecond=0)
+
+    if target - margin <= now <= target + margin:
+        return True
+
+    return False
+
 
 async def get_current_track(
     async_session: async_sessionmaker[AsyncSession],
@@ -136,13 +155,23 @@ async def get_current_track(
     if await get_alert_state():
         return
 
-    today = datetime.now()
+    now = datetime.now()
+    today = now.date()
+
+    if _is_announcement_time(now):
+        key = (today, now.hour)
+
+        if key not in _last_announcement_played:
+            _last_announcement_played.add(key)
+
+            return announcement_file_path
+
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
             ether = await uow.ethers.find_one(
-                Ether.ether_date == today.date(),
-                Ether.start_time <= today.time(),
-                Ether.end_time >= today.time(),
+                Ether.ether_date == now.date(),
+                Ether.start_time <= now.time(),
+                Ether.end_time >= now.time(),
                 Ether.cancelled == False,
             )
 

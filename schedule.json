@@ -139,7 +139,7 @@
             "is_locked": false
         },
         {
-            "name": "Подкасти",
+            "name": "Подкасти (денні)",
             "start": "14:00",
             "end": "14:15",
             "is_locked": true,
@@ -159,7 +159,7 @@
             "is_locked": false
         },
         {
-            "name": "Подкасти",
+            "name": "Подкасти (вечірні)",
             "start": "18:30",
             "end": "18:45",
             "is_locked": true,
@@ -199,7 +199,7 @@
             "is_locked": false
         },
         {
-            "name": "Подкасти",
+            "name": "Подкасти (денні)",
             "start": "14:00",
             "end": "14:15",
             "is_locked": true,
@@ -219,7 +219,7 @@
             "is_locked": false
         },
         {
-            "name": "Подкасти",
+            "name": "Подкасти (вечірні)",
             "start": "18:30",
             "end": "18:45",
             "is_locked": true,
@@ -275,12 +275,12 @@
         {
             "name": "Ранково-денний етер",
             "start": "9:01",
-            "end": "18:00",
+            "end": "16:00",
             "is_locked": false
         },
         {
             "name": "Вечірній етер",
-            "start": "18:00",
+            "start": "16:00",
             "end": "22:00",
             "is_locked": false
         }

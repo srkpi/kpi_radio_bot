@@ -6,7 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.bot.consts.ethers import SCHEDULE
-from app.bot.player.mpv_player import player, get_current_track
+from app.bot.player.mpv_player import player, announcement_file_path, get_current_track
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.statistic import update_statistic
 from app.settings import settings
@@ -104,7 +104,7 @@ class Scheduler:
                 if track and not player.is_playing:
                     player.play(track)
 
-                    return True
+                    return track != announcement_file_path
 
         return False
 
