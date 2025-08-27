@@ -116,6 +116,7 @@ physical_player = MPVPlayer(
     input_default_bindings=True,
     video=False,
     cache=False,
+    audio_channels="stereo",
 )
 
 streaming_player = MPVPlayer(
