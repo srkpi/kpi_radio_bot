@@ -138,6 +138,9 @@ _last_announcement_played: set[tuple[date, int]] = set()
 def _is_announcement_time(
     now: datetime, margin: timedelta = timedelta(minutes=5)
 ) -> bool:
+    # Announcements are currently disabled
+    return False
+
     hour = now.hour
 
     if not (9 <= hour <= 21):
