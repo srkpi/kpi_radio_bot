@@ -5,6 +5,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage, RedisEventIsolation
 from aiogram_dialog import setup_dialogs
+from sqlalchemy import text
 
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.bot.models import Base
@@ -28,6 +29,11 @@ async def on_startup(bot: Bot) -> None:
     scheduler = Scheduler(bot, sessionmaker)
     scheduler.start()
     async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE banned_users ADD COLUMN banned_feedback BOOLEAN DEFAULT 0"
+            )
+        )
         await conn.run_sync(Base.metadata.create_all)
     if (await bot.get_webhook_info()).url != settings.WEBHOOK_URL:
         await bot.delete_webhook(drop_pending_updates=True)

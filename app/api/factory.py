@@ -41,14 +41,15 @@ async def upate_commands(bot: Bot) -> None:
 
 
 def update_monitor_url() -> None:
-    url = f"https://uptime.betterstack.com/api/v2/monitors/{settings.UPTIME_MONITOR_ID.get_secret_value()}"
-    headers = {
-        "Authorization": f"Bearer {settings.UPTIME_API_TOKEN.get_secret_value()}",
-        "Content_Type": "application/json",
-    }
-    payload = {"url": str(settings.BASE_URL)}
+    if settings.UPTIME_MONITOR_ID.get_secret_value():
+        url = f"https://uptime.betterstack.com/api/v2/monitors/{settings.UPTIME_MONITOR_ID.get_secret_value()}"
+        headers = {
+            "Authorization": f"Bearer {settings.UPTIME_API_TOKEN.get_secret_value()}",
+            "Content_Type": "application/json",
+        }
+        payload = {"url": str(settings.BASE_URL)}
 
-    requests.request("PATCH", url, headers=headers, json=payload)
+        requests.request("PATCH", url, headers=headers, json=payload)
 
 
 def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI:

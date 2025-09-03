@@ -10,6 +10,7 @@ from aiogram.types import (
 from aiogram.exceptions import TelegramBadRequest
 
 from app.bot.models.order import Order
+from app.bot.models.banned_user import BannedUser
 from app.bot.repositories.uow import UnitOfWork
 from app.redis import redis_connection
 from app.settings import settings
@@ -195,9 +196,19 @@ async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
     )
 
 
-async def send_feedback(message: Message, bot: Bot):
+async def send_feedback(message: Message, bot: Bot, uow: UnitOfWork):
     user_id = message.from_user.id
     message_id = message.message_id
+
+    is_banned = await uow.banned_users.check_exists(
+        BannedUser.user_id == user_id,
+        BannedUser.is_deleted == False,
+        BannedUser.banned_feedback == True,
+    )
+
+    if is_banned:
+        await message.reply("Тобі заблоковано зворотній звʼязок з модераторами.")
+        return
 
     if message.text:
         user = message.from_user
@@ -244,12 +255,22 @@ async def send_feedback(message: Message, bot: Bot):
     )
 
 
-async def user_feedback_reply_handler(message: Message, bot: Bot):
+async def user_feedback_reply_handler(message: Message, bot: Bot, uow: UnitOfWork):
     user_id = message.from_user.id
     reply_message_id = message.reply_to_message.message_id
     admin_message_id = await get_admin_message_id(user_id, reply_message_id)
 
     if not admin_message_id:
+        return
+
+    is_banned = await uow.banned_users.check_exists(
+        BannedUser.user_id == user_id,
+        BannedUser.is_deleted == False,
+        BannedUser.banned_feedback == True,
+    )
+
+    if is_banned:
+        await message.reply("Тобі заблоковано зворотній звʼязок з модераторами.")
         return
 
     if message.text:

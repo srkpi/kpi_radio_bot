@@ -557,6 +557,73 @@ async def stop_alert(message: Message, uow: UnitOfWork):
     await message.reply("Повітряна тривога вимкнена!")
 
 
+async def ban_with_feedback(message: Message, bot: Bot, uow: UnitOfWork):
+    reply_message = message.reply_to_message
+    if reply_message is None:
+        await message.reply(
+            "Команда /ban_with_feedback має бути реплаєм на повідомлення із замовленням або на повідомлення фідбеку"
+        )
+        return
+
+    reply_message_id = reply_message.message_id
+    user_id, _ = await get_user_message_id(reply_message_id)
+    if user_id is None:
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Команда /ban_with_feedback має бути реплаєм на повідомлення із замовленням або на повідомлення фідбеку"
+            )
+            return
+
+        user_id = order.ordered_by
+
+    banned_user = await uow.banned_users.find_one(
+        BannedUser.user_id == user_id, BannedUser.is_deleted == False
+    )
+
+    if banned_user:
+        if banned_user.banned_feedback:
+            await message.reply(
+                "Користувач вже заблокований без можливості зворотнього звʼязку!"
+            )
+            return
+
+        banned_user.banned_feedback = True
+        await uow.flush()
+
+        await message.reply("Юзеру вимкнено можливість зворотнього звʼязку!")
+
+        block_reason = f" Причина блокування: {reason}" if reason else ""
+        await bot.send_message(
+            user_id,
+            f"Тобі вимкнено можливість зворотнього звʼязку 😳.{block_reason}",
+        )
+        return
+
+    reason = get_text_after_command(message)
+    await uow.banned_users.create(
+        BannedUser(
+            user_id=user_id,
+            ban_message_id=message.message_id,
+            banned_by=message.from_user.id,
+            timestamp=datetime.now(),
+            reason=reason,
+            banned_feedback=True,
+        )
+    )
+    await uow.flush()
+    await message.reply(
+        f"Користувач з id <code>{user_id}</code> заблокований без можливості зворотнього звʼязку!",
+        parse_mode="HTML",
+    )
+
+    block_reason = f" Причина блокування: {reason}" if reason else ""
+    await bot.send_message(
+        user_id,
+        f"🚫 Тебе забанили. Тепер більше не зможеш писати в зворотний зв'язок та замовляти треки 🙃.{block_reason}",
+    )
+
+
 async def ban(message: Message, bot: Bot, uow: UnitOfWork):
     reply_message = message.reply_to_message
     if reply_message is None:
@@ -593,6 +660,7 @@ async def ban(message: Message, bot: Bot, uow: UnitOfWork):
             banned_by=message.from_user.id,
             timestamp=datetime.now(),
             reason=reason,
+            banned_feedback=False,
         )
     )
     await uow.flush()
@@ -659,7 +727,8 @@ async def ban_list(message: Message, uow: UnitOfWork):
 
     for i, user in enumerate(banned_users, 1):
         ban_message_url = f"https://t.me/c/{chat_id_formatted}/{user.ban_message_id}"
-        ban_list_message += f'\n{i}) <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
+        feedback_emoji = "🔇" if user.banned_feedback else "🔊"
+        ban_list_message += f'\n{i}) {feedback_emoji} <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")
 
@@ -952,8 +1021,22 @@ async def blacklist(message: Message, uow: UnitOfWork):
     video_id = get_text_after_command(message)
 
     if not video_id:
-        await message.reply("Невірний формат команди! /blacklist video_id")
-        return
+        reply_message = message.reply_to_message
+        if reply_message is None:
+            await message.reply(
+                "Невірний формат команди! /blacklist video_id або реплай на замовлення"
+            )
+            return
+
+        reply_message_id = reply_message.message_id
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Невірний формат команди! /blacklist video_id або реплай на замовлення"
+            )
+            return
+
+        video_id = order.video_id
 
     if len(video_id) != 11:
         video_id = extract_youtube_video_id(video_id)
@@ -972,7 +1055,14 @@ async def blacklist(message: Message, uow: UnitOfWork):
     if record:
         record.is_deleted = True
 
-    await uow.auto_moderation.create(AutoModeration(video_id=video_id, confirm=False, set_by=message.from_user.id, timestamp=datetime.now()))
+    await uow.auto_moderation.create(
+        AutoModeration(
+            video_id=video_id,
+            confirm=False,
+            set_by=message.from_user.id,
+            timestamp=datetime.now(),
+        )
+    )
     await uow.flush()
 
     await message.reply(
@@ -984,8 +1074,22 @@ async def whitelist(message: Message, uow: UnitOfWork):
     video_id = get_text_after_command(message)
 
     if not video_id:
-        await message.reply("Невірний формат команди! /whitelist video_id")
-        return
+        reply_message = message.reply_to_message
+        if reply_message is None:
+            await message.reply(
+                "Невірний формат команди! /whitelist video_id або реплай на замовлення"
+            )
+            return
+
+        reply_message_id = reply_message.message_id
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Невірний формат команди! /whitelist video_id або реплай на замовлення"
+            )
+            return
+
+        video_id = order.video_id
 
     if len(video_id) != 11:
         video_id = extract_youtube_video_id(video_id)
@@ -1004,7 +1108,14 @@ async def whitelist(message: Message, uow: UnitOfWork):
     if record:
         record.is_deleted = True
 
-    await uow.auto_moderation.create(AutoModeration(video_id=video_id, confirm=True, set_by=message.from_user.id, timestamp=datetime.now()))
+    await uow.auto_moderation.create(
+        AutoModeration(
+            video_id=video_id,
+            confirm=True,
+            set_by=message.from_user.id,
+            timestamp=datetime.now(),
+        )
+    )
     await uow.flush()
 
     await message.reply(
@@ -1016,8 +1127,22 @@ async def manual_list(message: Message, uow: UnitOfWork):
     video_id = get_text_after_command(message)
 
     if not video_id:
-        await message.reply("Невірний формат команди! /manual_list video_id")
-        return
+        reply_message = message.reply_to_message
+        if reply_message is None:
+            await message.reply(
+                "Невірний формат команди! /manual_list video_id або реплай на замовлення"
+            )
+            return
+
+        reply_message_id = reply_message.message_id
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Невірний формат команди! /manual_list video_id або реплай на замовлення"
+            )
+            return
+
+        video_id = order.video_id
 
     if len(video_id) != 11:
         video_id = extract_youtube_video_id(video_id)
@@ -1055,8 +1180,22 @@ async def remove_lists(message: Message, uow: UnitOfWork):
     video_id = get_text_after_command(message)
 
     if not video_id:
-        await message.reply("Невірний формат команди! /remove_lists video_id")
-        return
+        reply_message = message.reply_to_message
+        if reply_message is None:
+            await message.reply(
+                "Невірний формат команди! /remove_lists video_id або реплай на замовлення"
+            )
+            return
+
+        reply_message_id = reply_message.message_id
+        order = await uow.orders.find_one(Order.order_message_id == reply_message_id)
+        if order is None:
+            await message.reply(
+                "Невірний формат команди! /remove_lists video_id або реплай на замовлення"
+            )
+            return
+
+        video_id = order.video_id
 
     if len(video_id) != 11:
         video_id = extract_youtube_video_id(video_id)
@@ -1077,7 +1216,8 @@ async def remove_lists(message: Message, uow: UnitOfWork):
     await uow.flush()
 
     await message.reply(
-        f"Відео з id <code>{video_id}</code> видалено зі списків автомодерації!", parse_mode="HTML"
+        f"Відео з id <code>{video_id}</code> видалено зі списків автомодерації!",
+        parse_mode="HTML",
     )
 
 

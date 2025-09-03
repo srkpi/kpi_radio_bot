@@ -10,6 +10,7 @@ class BannedUser(Base):
     user_id: Mapped[int] = mapped_column(index=True)
     ban_message_id: Mapped[int]
     banned_by: Mapped[int]
+    banned_feedback: Mapped[Optional[bool]] = mapped_column(default=False)
     timestamp: Mapped[datetime]
     reason: Mapped[Optional[str]]
     is_deleted: Mapped[bool] = mapped_column(default=False)

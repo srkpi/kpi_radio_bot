@@ -3,10 +3,14 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram_dialog.api.exceptions import UnknownIntent, OutdatedIntent
 
-from app.bot.banned_user_exception import BannedUserException
+from app.bot.banned_user_exception import BannedFeedbackException, BannedUserException
 from app.bot.consts.actions import Actions
 from app.bot.routers.confirm import confirm_order, decline_order
-from app.bot.routers.errors import context_not_found, user_is_banned
+from app.bot.routers.errors import (
+    context_not_found,
+    user_feedback_is_banned,
+    user_is_banned,
+)
 from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
 from app.bot.routers.commands import (
@@ -14,6 +18,7 @@ from app.bot.routers.commands import (
     auto_moderation_list,
     ban,
     ban_list,
+    ban_with_feedback,
     blacklist,
     cancel,
     help_command,
@@ -118,6 +123,12 @@ router.message.register(
     F.text,
 )
 router.message.register(
+    ban_with_feedback,
+    Command("ban_with_feedback"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+    F.text,
+)
+router.message.register(
     unban,
     Command("unban"),
     F.chat.id == settings.ADMINS_CHAT_ID,
@@ -215,3 +226,6 @@ router.include_router(private_router)
 router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
 router.error.register(context_not_found, ExceptionTypeFilter(OutdatedIntent))
 router.error.register(user_is_banned, ExceptionTypeFilter(BannedUserException))
+router.error.register(
+    user_feedback_is_banned, ExceptionTypeFilter(BannedFeedbackException)
+)

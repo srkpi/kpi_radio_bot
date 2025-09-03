@@ -12,3 +12,9 @@ async def user_is_banned(event: ErrorEvent):
     await event.update.message.answer(
         "🚫 Ти заблокований і не можеш робити замовлення!"
     )
+
+
+async def user_feedback_is_banned(event: ErrorEvent):
+    await event.update.message.answer(
+        "🚫 Ти заблокований і не можеш робити замовлення та писати в зворотний зв'язок!"
+    )

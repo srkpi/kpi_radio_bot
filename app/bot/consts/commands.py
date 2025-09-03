@@ -21,6 +21,10 @@ ADMIN_COMMANDS = [
     BotCommand(command="stop_alert", description="Скасувати тривогу"),
     BotCommand(command="reply", description="Надіслати фідбек (+ реплай на замовлння)"),
     BotCommand(command="ban", description="Заблокувати користувача (реплай + причина)"),
+    BotCommand(
+        command="ban_with_feedback",
+        description="Заблокувати користувача і зворотку (реплай + причина)",
+    ),
     BotCommand(command="unban", description="Розблокувати юзера (+ user id)"),
     BotCommand(command="ban_list", description="Вивести список заблокованих юзерів"),
     BotCommand(command="send_orders", description="Надіслати таблицю з замовленнями"),
@@ -40,14 +44,18 @@ ADMIN_COMMANDS = [
         command="auto_moderation",
         description="Список пісень автоматичної модерації",
     ),
-    BotCommand(command="whitelist", description="Додати пісню до whitelist (+ id)"),
-    BotCommand(command="blacklist", description="Додати пісню до blacklist (+ id)"),
+    BotCommand(
+        command="whitelist", description="Додати пісню до whitelist (+ id або реплай)"
+    ),
+    BotCommand(
+        command="blacklist", description="Додати пісню до blacklist (+ id або реплай)"
+    ),
     BotCommand(
         command="manual_list",
-        description="Додати пісню до завжди ручного модерування (+ id)",
+        description="Додати пісню до завжди ручного модерування (+ id або реплай)",
     ),
     BotCommand(
         command="remove_lists",
-        description="Прибрати пісню зі списків модерування (+ id)",
+        description="Прибрати пісню зі списків модерування (+ id або реплай)",
     ),
 ]
