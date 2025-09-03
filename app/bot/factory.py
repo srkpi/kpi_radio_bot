@@ -29,11 +29,6 @@ async def on_startup(bot: Bot) -> None:
     scheduler = Scheduler(bot, sessionmaker)
     scheduler.start()
     async with engine.begin() as conn:
-        await conn.execute(
-            text(
-                "ALTER TABLE banned_users ADD COLUMN banned_feedback BOOLEAN DEFAULT 0"
-            )
-        )
         await conn.run_sync(Base.metadata.create_all)
     if (await bot.get_webhook_info()).url != settings.WEBHOOK_URL:
         await bot.delete_webhook(drop_pending_updates=True)
