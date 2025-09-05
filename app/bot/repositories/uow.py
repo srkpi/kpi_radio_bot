@@ -9,6 +9,7 @@ from app.bot.repositories.banned_user import BannedUserRepository
 from app.bot.repositories.day_state import DayStateRepository
 from app.bot.repositories.ether import EtherRepository
 from app.bot.repositories.order import OrderRepository
+from app.bot.repositories.volume_change_point import VolumeChangePointRepository
 
 
 class UnitOfWork:
@@ -19,6 +20,7 @@ class UnitOfWork:
     day_state: DayStateRepository
     banned_users: BannedUserRepository
     auto_moderation: AutoModerationRepository
+    volume_change_points: VolumeChangePointRepository
 
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -27,6 +29,7 @@ class UnitOfWork:
         self.day_state = DayStateRepository(self._session)
         self.banned_users = BannedUserRepository(self._session)
         self.auto_moderation = AutoModerationRepository(self._session)
+        self.volume_change_points = VolumeChangePointRepository(self._session)
 
     async def __aenter__(self):
         return self

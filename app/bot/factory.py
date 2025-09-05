@@ -5,7 +5,6 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage, RedisEventIsolation
 from aiogram_dialog import setup_dialogs
-from sqlalchemy import text
 
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.bot.models import Base
@@ -14,6 +13,7 @@ from app.bot.player.streamer import ffmpeg_streamer
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
 from app.bot.services.statistic import update_statistic
+from app.bot.services.volume_changer import VolumeChanger
 from app.database import sessionmaker, engine
 from app.redis import redis_connection
 from app.settings import settings
@@ -26,10 +26,15 @@ async def start_current_ether():
 
 
 async def on_startup(bot: Bot) -> None:
-    scheduler = Scheduler(bot, sessionmaker)
-    scheduler.start()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    await VolumeChanger.load_volume_points_by_session(sessionmaker)
+    VolumeChanger.check_and_set_nearest_volume()
+
+    scheduler = Scheduler(bot, sessionmaker)
+    await scheduler.start()
+
     if (await bot.get_webhook_info()).url != settings.WEBHOOK_URL:
         await bot.delete_webhook(drop_pending_updates=True)
         await bot.set_webhook(

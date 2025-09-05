@@ -151,6 +151,19 @@ async def confirm_order(
                     play_time = datetime.now() + timedelta(
                         seconds=total_duration + play_delay
                     )
+
+                    order_finish_time = (
+                        play_time + timedelta(seconds=order.duration)
+                    ).time()
+
+                    if order_finish_time > order.ether.end_time:
+                        text = (
+                            callback.message.html_text
+                            + "\nПісня не встигне програти до закінчення етеру"
+                        )
+                        await change_callback_message_text(callback, text)
+                        return
+
                     play_time_str = play_time.strftime("%H:%M")
                     order.expected_play_time = play_time
 
@@ -193,6 +206,19 @@ async def confirm_order(
                 play_time = datetime.combine(
                     order_ether.ether_date, order_ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)
+
+                order_finish_time = (
+                    play_time + timedelta(seconds=order.duration)
+                ).time()
+
+                if order_finish_time > order.ether.end_time:
+                    text = (
+                        callback.message.html_text
+                        + "\nПісня не встигне програти до закінчення етеру"
+                    )
+                    await change_callback_message_text(callback, text)
+                    return
+
                 play_time_str = play_time.strftime("%H:%M")
                 order.expected_play_time = play_time
 

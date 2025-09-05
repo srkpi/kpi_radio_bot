@@ -65,6 +65,7 @@ async def alert_route(
                         await clear_queue_alert(uow, bot)
 
                 player.play("music/alert.mp3")
+                player.set_temp_volume(100)
 
                 await bot.send_message(
                     text="Повітряна тривога!",
@@ -75,6 +76,7 @@ async def alert_route(
             await set_alert_state(False)
 
             player.play("music/all_clear.mp3")
+            player.set_temp_volume(100)
 
             await bot.send_message(
                 text="Відбій повітряної тривоги!",

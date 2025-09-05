@@ -58,4 +58,16 @@ ADMIN_COMMANDS = [
         command="remove_lists",
         description="Прибрати пісню зі списків модерування (+ id або реплай)",
     ),
+    BotCommand(
+        command="add_volume_change_point",
+        description="Додати точку зміни гучності (час + гучність)",
+    ),
+    BotCommand(
+        command="delete_volume_change_point",
+        description="Видалити точку зміни гучності (+ час)",
+    ),
+    BotCommand(
+        command="list_volume_change_points",
+        description="Показати список точок зміни гучності",
+    ),
 ]

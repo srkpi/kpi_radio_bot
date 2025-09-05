@@ -22,6 +22,7 @@ from app.bot.routers.commands import (
     blacklist,
     cancel,
     help_command,
+    list_volume_change_points,
     manual_list,
     remove_lists,
     restart,
@@ -46,6 +47,8 @@ from app.bot.routers.commands import (
     force_play,
     force_playlist,
     whitelist,
+    add_volume_change_point,
+    delete_volume_change_point,
 )
 from app.bot.routers.main_menu import main_menu
 from app.bot.routers.order_menu import order_menu
@@ -205,6 +208,22 @@ router.message.register(
 router.message.register(
     force_playlist,
     Command("force_playlist"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+
+router.message.register(
+    add_volume_change_point,
+    Command("add_volume_change_point"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    delete_volume_change_point,
+    Command("delete_volume_change_point"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    list_volume_change_points,
+    Command("list_volume_change_points"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 

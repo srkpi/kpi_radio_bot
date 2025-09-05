@@ -22,6 +22,7 @@ from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
+from app.bot.models.volume_change_point import VolumeChangePoint
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.order_menu import (
@@ -38,6 +39,7 @@ from app.bot.services.song_downloader import (
     get_song_path,
     is_downloading,
 )
+from app.bot.services.volume_changer import VolumeChanger
 from app.bot.states.alert_state import get_alert_state, set_alert_state
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
@@ -540,6 +542,7 @@ async def alert(message: Message, bot: Bot, uow: UnitOfWork):
     await clear_queue_alert(uow, bot)
 
     player.play("music/alert.mp3")
+    player.set_temp_volume(100)
 
     await message.reply("Повітряна тривога увімкненна!")
 
@@ -553,6 +556,7 @@ async def stop_alert(message: Message, uow: UnitOfWork):
     await set_alert_state(False)
 
     player.play("music/all_clear.mp3")
+    player.set_temp_volume(100)
 
     await message.reply("Повітряна тривога вимкнена!")
 
@@ -1423,3 +1427,93 @@ async def force_playlist(message: Message, uow: UnitOfWork):
     await message.reply(
         f"Поточний етер заповнено треками з плейлиста! Всього додано: {order_idx} треків."
     )
+
+
+async def add_volume_change_point(message: Message, uow: UnitOfWork):
+    args = get_text_after_command(message)
+    if not args:
+        await message.answer("Використання: /add_volume_change_point hh:mm volume")
+        return
+
+    try:
+        time_str, volume_str = args.split()
+    except ValueError:
+        await message.answer(
+            "Неправильний формат. Використання: /add_volume_change_point hh:mm volume"
+        )
+        return
+
+    time_match = re.match(r"^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$", time_str)
+    if not time_match:
+        await message.answer("Неправильний формат часу. Має бути hh:mm")
+        return
+
+    hour, minute = map(int, time_match.groups())
+    point_time = time(hour=hour, minute=minute)
+
+    try:
+        volume = int(volume_str)
+        if not 0 <= volume <= 100:
+            raise ValueError()
+    except ValueError:
+        await message.answer("Гучність має бути числом від 0 до 100")
+        return
+
+    existing_point = await uow.volume_change_points.find_one(
+        VolumeChangePoint.time == point_time
+    )
+    if existing_point:
+        await message.answer(f"Точка зміни гучності вже існує для часу {time_str}")
+        return
+
+    await uow.volume_change_points.create(
+        VolumeChangePoint(time=point_time, volume=volume)
+    )
+    await uow.flush()
+
+    await VolumeChanger.load_volume_points(uow)
+
+    await message.answer(f"Точку зміни гучності додано: {time_str} -> {volume}%")
+
+
+async def delete_volume_change_point(message: Message, uow: UnitOfWork):
+    time_str = get_text_after_command(message)
+    if not time_str:
+        await message.answer("Використання: /delete_volume_change_point hh:mm")
+        return
+
+    time_match = re.match(r"^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$", time_str.strip())
+    if not time_match:
+        await message.answer("Неправильний формат часу. Має бути hh:mm")
+        return
+
+    hour, minute = map(int, time_match.groups())
+    point_time = time(hour=hour, minute=minute)
+
+    point = await uow.volume_change_points.find_one(
+        VolumeChangePoint.time == point_time
+    )
+    if not point:
+        await message.answer(f"Точка зміни гучності не знайдена для часу {time_str}")
+        return
+
+    await uow.volume_change_points.delete(VolumeChangePoint.time == point_time)
+    await uow.flush()
+
+    await VolumeChanger.load_volume_points(uow)
+
+    await message.answer(f"Точку зміни гучності видалено для часу {time_str}")
+
+
+async def list_volume_change_points(message: Message, uow: UnitOfWork):
+    points = await uow.volume_change_points.find(order=[VolumeChangePoint.time])
+
+    if not points:
+        await message.answer("Немає збережених точок зміни гучності")
+        return
+
+    lines = ["Список точок зміни гучності:"]
+    for point in points:
+        lines.append(f"{point.time.strftime('%H:%M')} -> {point.volume}%")
+
+    await message.answer("\n".join(lines))
