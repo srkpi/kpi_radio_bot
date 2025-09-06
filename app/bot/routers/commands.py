@@ -724,7 +724,7 @@ async def ban_list(message: Message, uow: UnitOfWork):
         await message.reply("Список заблокованих користувачів порожній")
         return
 
-    ban_list_message = f"<b>== Заблоковані користувачі ({len(banned_users)}) ==</b>\n"
+    ban_list_message = f"<b>Заблоковані користувачі ({len(banned_users)})</b>\n"
 
     chat_id = settings.ADMINS_CHAT_ID
     chat_id_formatted = str(chat_id)[4:] if chat_id < 0 else str(chat_id)
@@ -732,7 +732,7 @@ async def ban_list(message: Message, uow: UnitOfWork):
     for i, user in enumerate(banned_users, 1):
         ban_message_url = f"https://t.me/c/{chat_id_formatted}/{user.ban_message_id}"
         feedback_emoji = "🔇" if user.banned_feedback else "🔊"
-        ban_list_message += f'\n{i}) {feedback_emoji} <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y %H:%M")}</a>'
+        ban_list_message += f'\n{i}) {feedback_emoji} <code>{user.user_id}</code> - <a href="{ban_message_url}">{user.timestamp.strftime("%d.%m.%Y")}</a>'
 
     await message.reply(ban_list_message, parse_mode="HTML")
 
