@@ -31,8 +31,14 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
+            "start": "19:40",
             "end": "22:00",
             "is_locked": false
         }
@@ -69,8 +75,14 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
+            "start": "19:40",
             "end": "22:00",
             "is_locked": false
         }
@@ -107,8 +119,14 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
+            "start": "19:40",
             "end": "22:00",
             "is_locked": false
         }
@@ -153,22 +171,28 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
-            "end": "18:30",
+            "start": "19:40",
+            "end": "20:00",
             "is_locked": false
         },
         {
             "name": "Подкасти (вечірні)",
-            "start": "18:30",
-            "end": "18:45",
+            "start": "20:00",
+            "end": "20:15",
             "is_locked": true,
             "unlock_time": "12:00",
             "unlock_name": "Вечірній етер"
         },
         {
             "name": "Вечірній етер",
-            "start": "18:45",
+            "start": "20:15",
             "end": "22:00",
             "is_locked": false
         }
@@ -213,22 +237,28 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
-            "end": "18:30",
+            "start": "19:40",
+            "end": "20:00",
             "is_locked": false
         },
         {
             "name": "Подкасти (вечірні)",
-            "start": "18:30",
-            "end": "18:45",
+            "start": "20:00",
+            "end": "20:15",
             "is_locked": true,
             "unlock_time": "12:00",
             "unlock_name": "Вечірній етер"
         },
         {
             "name": "Вечірній етер",
-            "start": "18:45",
+            "start": "20:15",
             "end": "22:00",
             "is_locked": false
         }
@@ -265,8 +295,14 @@
             "is_locked": false
         },
         {
+            "name": "П'ята перерва",
+            "start": "17:45",
+            "end": "18:05",
+            "is_locked": false
+        },
+        {
             "name": "Вечірній етер",
-            "start": "18:00",
+            "start": "19:40",
             "end": "22:00",
             "is_locked": false
         }
