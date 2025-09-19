@@ -1535,12 +1535,12 @@ async def not_moderated(message: Message, uow: UnitOfWork):
     )
 
     ethers = list(ethers_today) + list(other_ethers)
-    message_ids = [
+    message_ids = sorted([
         order.order_message_id
         for ether in ethers
         for order in ether.orders
         if order.decided_by is None and order.order_message_id
-    ]
+    ])
 
     if len(message_ids) == 0:
         await message.answer("Усе промодеровано!")
