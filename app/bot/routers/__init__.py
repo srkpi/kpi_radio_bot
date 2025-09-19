@@ -24,6 +24,7 @@ from app.bot.routers.commands import (
     help_command,
     list_volume_change_points,
     manual_list,
+    not_moderated,
     remove_lists,
     restart,
     send_database,
@@ -224,6 +225,12 @@ router.message.register(
 router.message.register(
     list_volume_change_points,
     Command("list_volume_change_points"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+
+router.message.register(
+    not_moderated,
+    Command("not_moderated"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 

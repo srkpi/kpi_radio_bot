@@ -18,6 +18,7 @@ from aiogram.types import BufferedInputFile, FSInputFile
 
 from app.api.routes.alert import clear_queue_alert
 from app.bot.consts.ethers import SCHEDULE
+from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
 from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
@@ -1420,7 +1421,7 @@ async def force_playlist(message: Message, uow: UnitOfWork):
             else:
                 await add_to_download_queue(video_id)
 
-            seconds_filled += duration + 5
+            seconds_filled += duration + AVERAGE_SONG_SWITCH_DELAY
             order_idx += 1
 
     await uow.flush()
@@ -1517,3 +1518,38 @@ async def list_volume_change_points(message: Message, uow: UnitOfWork):
         lines.append(f"{point.time.strftime('%H:%M')} -> {point.volume}%")
 
     await message.answer("\n".join(lines))
+
+
+async def not_moderated(message: Message, uow: UnitOfWork):
+    today = datetime.now()
+    ethers_today = await uow.ethers.find(
+        Ether.ether_date == today.date(),
+        Ether.end_time >= today.time(),
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+    other_ethers = await uow.ethers.find(
+        Ether.ether_date > today.date(),
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+    )
+
+    ethers = list(ethers_today) + list(other_ethers)
+    message_ids = [
+        order.order_message_id
+        for ether in ethers
+        for order in ether.orders
+        if order.decided_by is None and order.order_message_id
+    ]
+
+    if len(message_ids) == 0:
+        await message.answer("Усе промодеровано!")
+        return
+
+    answer_text = "Очікують на модерацію:"
+    chat = str(settings.ADMINS_CHAT_ID).replace("-100", "")
+    thread = str(settings.ADMINS_MODERATION_THREAD_ID)
+    for i, message_id in enumerate(message_ids, 1):
+        answer_text += f"\n{i}) https://t.me/c/{chat}/{thread}/{message_id}"
+
+    await message.answer(answer_text)

@@ -70,4 +70,8 @@ ADMIN_COMMANDS = [
         command="list_volume_change_points",
         description="Показати список точок зміни гучності",
     ),
+    BotCommand(
+        command="not_moderated",
+        description="Список пісень, які очікують на модерацію",
+    ),
 ]

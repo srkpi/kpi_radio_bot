@@ -17,7 +17,7 @@ from aiogram_dialog.widgets.text import Const, Format
 
 from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.ethers import SCHEDULE
-from app.bot.consts.other import WEEKDAYS
+from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY, WEEKDAYS
 from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
@@ -303,8 +303,10 @@ async def on_ether_selected(
 
                 play_time = now + timedelta(seconds=total_duration)
             else:
-                play_delay = 5 * len(ether_orders)
-                not_confimred_orders_duration += 5 * len(ether_orders_2)
+                play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
+                not_confimred_orders_duration += AVERAGE_SONG_SWITCH_DELAY * len(
+                    ether_orders_2
+                )
 
                 play_time = datetime.combine(
                     ether.ether_date, ether.start_time
@@ -355,11 +357,37 @@ async def on_ether_selected(
             hours=2
         )
 
+        recent_ordered = False
+        will_play_soon = False
+        recently_played = False
+
         rating = 0
         same_ether_orders: list[Order] = []
         for order in same_orders:
-            if order.ether_id == ether.id and order.expected_play_time:
-                same_ether_orders.append(order)
+            if order.ether_id == ether.id:
+                if order.expected_play_time:
+                    same_ether_orders.append(order)
+                    now = datetime.now()
+
+                    if (
+                        order.played == False
+                        and (
+                            now.date() == ether.ether_date
+                            and now < order.expected_play_time
+                            and now + timedelta(minutes=30) > order.expected_play_time
+                        )
+                        or play_time - timedelta(minutes=30) < order.expected_play_time
+                    ):
+                        will_play_soon = True
+
+                    if order.play_start and order.played == True and now < order.play_start + timedelta(
+                        seconds=order.duration,
+                        minutes=30,
+                    ):
+                        recently_played = True
+
+                if order.decided_by is None:
+                    recent_ordered = True
 
             if order.confirmed:
                 rating += 1
@@ -424,6 +452,31 @@ async def on_ether_selected(
                 cancel_text += f"Почне грати о {scheduled_play_time_str}"
 
             decision_label = "🚫 Відхлилено автоматично (вже замовлено, НЕ вечірній етер, НЕ вихідний)"
+            confirmation_status = False
+
+        elif recent_ordered:
+            cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже замовлена та чекає модерації."
+            decision_label = (
+                "🚫 Відхлилено автоматично (вже замовлено, чекає апруву на цей етер)"
+            )
+            confirmation_status = False
+
+        elif will_play_soon:
+            cancel_text = (
+                "🚫 Замовлення автоматично відхилено, має програти на цьому етері."
+            )
+            decision_label = (
+                "🚫 Відхлилено автоматично (вже замовлено, має програти на цьому етері)"
+            )
+            confirmation_status = False
+
+        elif recently_played:
+            cancel_text = (
+                "🚫 Замовлення автоматично відхилено, ця пісня нещодавно програла."
+            )
+            decision_label = (
+                "🚫 Відхлилено автоматично (вже замовлено, нещодавно програла)"
+            )
             confirmation_status = False
 
         play_now = False

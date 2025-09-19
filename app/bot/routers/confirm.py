@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from aiogram.types import CallbackQuery
 from sqlalchemy.orm import selectinload
 
+from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
 from app.bot.models import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
@@ -147,7 +148,9 @@ async def confirm_order(
                             0,
                         )
 
-                    play_delay = 5 * (ether_not_played_orders_len - 1)
+                    play_delay = AVERAGE_SONG_SWITCH_DELAY * (
+                        ether_not_played_orders_len - 1
+                    )
                     play_time = datetime.now() + timedelta(
                         seconds=total_duration + play_delay
                     )
@@ -156,15 +159,19 @@ async def confirm_order(
                         play_time + timedelta(seconds=order.duration)
                     ).time()
 
+                    play_time_str = play_time.strftime("%H:%M")
+
                     if order_finish_time > order.ether.end_time:
                         text = (
                             callback.message.html_text
                             + "\nПісня не встигне програти до закінчення етеру"
                         )
-                        await change_callback_message_text(callback, text)
+                        replaced_time_text = re.sub(
+                            r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text
+                        )
+                        await change_callback_message_text(callback, replaced_time_text)
                         return
 
-                    play_time_str = play_time.strftime("%H:%M")
                     order.expected_play_time = play_time
 
                     await callback.bot.send_message(
@@ -202,7 +209,7 @@ async def confirm_order(
                     o.duration for o in ether_orders if o.id != order.id
                 )
 
-                play_delay = 5 * len(ether_orders)
+                play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
                 play_time = datetime.combine(
                     order_ether.ether_date, order_ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)
@@ -211,15 +218,19 @@ async def confirm_order(
                     play_time + timedelta(seconds=order.duration)
                 ).time()
 
+                play_time_str = play_time.strftime("%H:%M")
+
                 if order_finish_time > order.ether.end_time:
                     text = (
                         callback.message.html_text
                         + "\nПісня не встигне програти до закінчення етеру"
                     )
-                    await change_callback_message_text(callback, text)
+                    replaced_time_text = re.sub(
+                        r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text
+                    )
+                    await change_callback_message_text(callback, replaced_time_text)
                     return
 
-                play_time_str = play_time.strftime("%H:%M")
                 order.expected_play_time = play_time
 
                 ether_date = order_ether.ether_date
