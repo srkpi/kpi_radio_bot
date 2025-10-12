@@ -13,7 +13,6 @@ from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
 from app.bot.services.song_downloader import add_to_download_queue, get_song_path
 from app.bot.states.alert_state import get_alert_state
-from app.settings import settings
 
 order_count_pattern = r"\((\d+)/(\d+)\)$"
 order_locks: dict[int, asyncio.Lock] = {}
@@ -83,7 +82,7 @@ async def confirm_order(
                 if order_ether.end_time < song_end_time:
                     text = (
                         callback.message.html_text
-                        + "\nПісня не встигне програти до закінчення етеру"
+                        + f"\nПісня не встигне програти до закінчення етеру\n@Maximax67, 1, ft: {song_end_time.strftime('%H:%M:%S')}"
                     )
                     await change_callback_message_text(callback, text)
                     return
@@ -135,11 +134,10 @@ async def confirm_order(
 
                 if current_playing or len(ether_not_played_orders):
                     ether_not_played_orders_len = len(ether_not_played_orders)
-
                     total_duration = sum(o.duration for o in ether_not_played_orders)
 
-                    if current_playing and current_playing.play_start:
-                        total_duration -= max(
+                    if current_playing:
+                        minus_playing = max(
                             round(
                                 (
                                     current_datetime - current_playing.play_start
@@ -147,6 +145,7 @@ async def confirm_order(
                             ),
                             0,
                         )
+                        total_duration -= minus_playing
 
                     play_delay = AVERAGE_SONG_SWITCH_DELAY * (
                         ether_not_played_orders_len - 1
@@ -164,12 +163,9 @@ async def confirm_order(
                     if order_finish_time > order.ether.end_time:
                         text = (
                             callback.message.html_text
-                            + "\nПісня не встигне програти до закінчення етеру"
+                            + f"\nПісня не встигне програти до закінчення етеру\n@Maximax67, 2, ft: {order_finish_time.strftime('%H:%M:%S')}, td: {total_duration}, pd: {play_delay}, eo: {len(ether_not_played_orders)}, cp: {bool(current_playing)}, mp: {minus_playing}"
                         )
-                        replaced_time_text = re.sub(
-                            r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text
-                        )
-                        await change_callback_message_text(callback, replaced_time_text)
+                        await change_callback_message_text(callback, text)
                         return
 
                     order.expected_play_time = play_time
@@ -209,7 +205,7 @@ async def confirm_order(
                     o.duration for o in ether_orders if o.id != order.id
                 )
 
-                play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
+                play_delay = AVERAGE_SONG_SWITCH_DELAY * (len(ether_orders) - 1)
                 play_time = datetime.combine(
                     order_ether.ether_date, order_ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)
@@ -223,12 +219,9 @@ async def confirm_order(
                 if order_finish_time > order.ether.end_time:
                     text = (
                         callback.message.html_text
-                        + "\nПісня не встигне програти до закінчення етеру"
+                        + f"\nПісня не встигне програти до закінчення етеру\n@Maximax67, 3, ft: {order_finish_time.strftime('%H:%M:%S')}, td: {total_duration}, pd: {play_delay}, eo: {len(ether_orders)}"
                     )
-                    replaced_time_text = re.sub(
-                        r"(🕓)\s(\d{2}:\d{2})", f"\\1 {play_time_str}", text
-                    )
-                    await change_callback_message_text(callback, replaced_time_text)
+                    await change_callback_message_text(callback, text)
                     return
 
                 order.expected_play_time = play_time

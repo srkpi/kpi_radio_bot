@@ -270,6 +270,39 @@ async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
     await bot.send_message(order.ordered_by, cancel_text)
 
 
+async def now_playing(message: Message, uow: UnitOfWork):
+    today = datetime.now()
+
+    order = await uow.orders.find_one(
+        Ether.ether_date == today.date(),
+        Ether.start_time <= today.time(),
+        Ether.cancelled == False,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start != None,
+        options=[joinedload(Order.ether)],
+        order=[Order.play_start.desc()],
+    )
+
+    if not order:
+        return await message.answer("Зараз нічого не грає")
+
+    expected_time = (
+        order.expected_play_time.strftime("%H:%M:%S") if order.expected_play_time else "—"
+    )
+    actual_time = order.play_start.strftime("%H:%M:%S") if order.play_start else "—"
+    chat_formatted = str(settings.ADMINS_CHAT_ID).replace("-100", "")
+
+    text = (
+        f"{order.title}\n"
+        f"https://t.me/c/{chat_formatted}/{settings.ADMINS_MODERATION_THREAD_ID}/{order.order_message_id}\n\n"
+        f"⏰ Очікуваний старт: {expected_time}\n"
+        f"▶️ Фактичний: {actual_time}"
+    )
+
+    await message.answer(text, parse_mode=None)
+
+
 async def stop(message: Message, uow: UnitOfWork):
     today = datetime.now()
     ether = await uow.ethers.find_one(
@@ -1535,12 +1568,14 @@ async def not_moderated(message: Message, uow: UnitOfWork):
     )
 
     ethers = list(ethers_today) + list(other_ethers)
-    message_ids = sorted([
-        order.order_message_id
-        for ether in ethers
-        for order in ether.orders
-        if order.decided_by is None and order.order_message_id
-    ])
+    message_ids = sorted(
+        [
+            order.order_message_id
+            for ether in ethers
+            for order in ether.orders
+            if order.decided_by is None and order.order_message_id
+        ]
+    )
 
     if len(message_ids) == 0:
         await message.answer("Усе промодеровано!")

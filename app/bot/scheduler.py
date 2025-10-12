@@ -123,8 +123,10 @@ class Scheduler:
         async_session: async_sessionmaker[AsyncSession], bot: Bot
     ) -> None:
         if await Scheduler.play_current_song(async_session):
-            await bot.send_message(
-                settings.ADMINS_CHAT_ID,
-                "💥🔄✅ Автоматично відновлено програвання",
-                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-            )
+            return
+
+            #await bot.send_message(
+            #    settings.ADMINS_CHAT_ID,
+            #    "💥🔄✅ Автоматично відновлено програвання",
+            #    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+            #)

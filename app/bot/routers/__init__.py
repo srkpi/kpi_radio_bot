@@ -25,6 +25,7 @@ from app.bot.routers.commands import (
     list_volume_change_points,
     manual_list,
     not_moderated,
+    now_playing,
     remove_lists,
     restart,
     send_database,
@@ -84,6 +85,9 @@ private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownInte
 router.message.register(skip, Command("skip"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(cancel, Command("cancel"), F.chat.id == settings.ADMINS_CHAT_ID)
 router.message.register(stop, Command("stop"), F.chat.id == settings.ADMINS_CHAT_ID)
+router.message.register(
+    now_playing, Command("now"), F.chat.id == settings.ADMINS_CHAT_ID
+)
 router.message.register(
     stop_today, Command("stop_today"), F.chat.id == settings.ADMINS_CHAT_ID
 )

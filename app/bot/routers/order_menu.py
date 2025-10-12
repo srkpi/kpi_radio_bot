@@ -380,9 +380,15 @@ async def on_ether_selected(
                     ):
                         will_play_soon = True
 
-                    if order.play_start and order.played == True and now < order.play_start + timedelta(
-                        seconds=order.duration,
-                        minutes=30,
+                    if (
+                        order.play_start
+                        and order.played == True
+                        and now
+                        < order.play_start
+                        + timedelta(
+                            seconds=order.duration,
+                            minutes=30,
+                        )
                     ):
                         recently_played = True
 
@@ -700,7 +706,11 @@ async def get_ethers_by_day(day: int, uow: UnitOfWork, dialog_manager: DialogMan
 
 async def get_data(dialog_manager: DialogManager, **kwargs):
     uow = dialog_manager.middleware_data["uow"]
-    audio = dialog_manager.dialog_data["audio"]
+    audio = dialog_manager.dialog_data.get("audio")
+    if audio is None:
+        audio = dialog_manager.start_data.get("audio")
+        dialog_manager.dialog_data["audio"] = audio
+
     days = []
 
     def format_day_offset(offset: int) -> str:

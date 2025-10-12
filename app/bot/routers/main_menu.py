@@ -1,14 +1,32 @@
-from aiogram_dialog import Dialog, Window
+from aiogram.enums import ContentType
+from aiogram.types import Message
+from aiogram_dialog import Dialog, DialogManager, Window
+from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Row
 from aiogram_dialog.widgets.markup.reply_keyboard import ReplyKeyboardFactory
 from aiogram_dialog.widgets.text import Const
 
+from app.bot.routers.feedback_menu import ban_check
+from app.bot.routers.order_menu import search_song_by_url
 from app.bot.states.feedback import FeedbackStates
 from app.bot.states.help import HelpStates
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
 from app.bot.states.player import PlayerStates
 from app.bot.states.schedule import ScheduleStates
+
+
+async def forward_to_order(
+    message: Message, message_input: MessageInput, manager: DialogManager
+) -> None:
+    await ban_check(manager)
+
+    song_info = await search_song_by_url(message.text, message, True)
+    if song_info is None:
+        return
+
+    await manager.start(OrderStates.day, data={"audio": song_info})
+
 
 main_menu = Dialog(
     Window(
@@ -40,6 +58,7 @@ main_menu = Dialog(
                 state=ScheduleStates.schedule,
             ),
         ),
+        MessageInput(forward_to_order, content_types=[ContentType.TEXT]),
         markup_factory=ReplyKeyboardFactory(
             resize_keyboard=True,
         ),

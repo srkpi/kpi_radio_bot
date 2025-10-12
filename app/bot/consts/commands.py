@@ -74,4 +74,5 @@ ADMIN_COMMANDS = [
         command="not_moderated",
         description="Список пісень, які очікують на модерацію",
     ),
+    BotCommand(command="now", description="Вивід поточної пісні"),
 ]
