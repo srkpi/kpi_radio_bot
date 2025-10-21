@@ -117,6 +117,7 @@ physical_player = MPVPlayer(
     video=False,
     cache=False,
     audio_channels="stereo",
+    ytdl_raw_options="extractor-args=youtube:player_client=android",
 )
 
 streaming_player = MPVPlayer(
@@ -127,6 +128,7 @@ streaming_player = MPVPlayer(
     video=False,
     cache=False,
     audio_channels="stereo",
+    ytdl_raw_options="extractor-args=youtube:player_client=android",
 )
 
 player = DoubleMPVPlayer(physical_player, streaming_player)
