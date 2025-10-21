@@ -288,7 +288,9 @@ async def now_playing(message: Message, uow: UnitOfWork):
         return await message.answer("Зараз нічого не грає")
 
     expected_time = (
-        order.expected_play_time.strftime("%H:%M:%S") if order.expected_play_time else "—"
+        order.expected_play_time.strftime("%H:%M:%S")
+        if order.expected_play_time
+        else "—"
     )
     actual_time = order.play_start.strftime("%H:%M:%S") if order.play_start else "—"
     chat_formatted = str(settings.ADMINS_CHAT_ID).replace("-100", "")
@@ -1573,7 +1575,7 @@ async def not_moderated(message: Message, uow: UnitOfWork):
             order.order_message_id
             for ether in ethers
             for order in ether.orders
-            if order.decided_by is None and order.order_message_id
+            if order.decided_by is None and order.order_message_id and not order.played
         ]
     )
 

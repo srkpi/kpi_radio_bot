@@ -56,7 +56,10 @@ async def confirm_order(
                 return
 
             if order.played:
-                text = callback.message.html_text + "\nОрдер скасовано через тривогу"
+                text = (
+                    callback.message.html_text
+                    + "\nОрдер було скасовано (через тривогу, стоп, очистку черги або ще щось)"
+                )
                 await change_callback_message_text(callback, text)
                 return
 
