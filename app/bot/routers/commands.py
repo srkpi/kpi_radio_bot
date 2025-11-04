@@ -1,3 +1,5 @@
+import asyncio
+import html
 import io
 import os
 import sqlite3
@@ -5,6 +7,7 @@ import subprocess
 import re
 
 from datetime import date, datetime, time, timedelta
+import threading
 from typing import Tuple, List, Optional
 
 from openpyxl import Workbook
@@ -22,6 +25,7 @@ from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
 from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
+from app.bot.models.block_phrase import BlockPhrase
 from app.bot.models.day_state import DayState
 from app.bot.models.volume_change_point import VolumeChangePoint
 from app.bot.player.mpv_player import player
@@ -1007,9 +1011,7 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
     )
 
 
-async def send_database(message: Message, uow: UnitOfWork):
-    await uow.flush()
-
+async def send_database_task(message: Message):
     conn = sqlite3.connect("radio.db")
     cursor = conn.cursor()
 
@@ -1047,9 +1049,25 @@ async def send_database(message: Message, uow: UnitOfWork):
     wb.save(buffer)
     buffer.seek(0)
 
-    await message.reply_document(
-        document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx")
+    bot = Bot(settings.TOKEN.get_secret_value())
+    await bot.send_document(
+        document=BufferedInputFile(file=buffer.getvalue(), filename="database.xlsx"),
+        chat_id=settings.ADMINS_CHAT_ID,
+        reply_to_message_id=message.message_id,
+        message_thread_id=message.message_thread_id,
     )
+    await bot.session.close()
+
+
+def run_in_thread_send_database(message: Message):
+    asyncio.run(send_database_task(message))
+
+
+async def send_database(message: Message, uow: UnitOfWork):
+    await uow.flush()
+    threading.Thread(
+        target=run_in_thread_send_database, args=(message,), daemon=True
+    ).start()
 
 
 async def send_database_sql(message: Message, uow: UnitOfWork):
@@ -1299,7 +1317,7 @@ async def force_play(message: Message, uow: UnitOfWork):
         order.played = True
         await uow.flush()
 
-    video_info = await search_song_by_url(url, message, False)
+    video_info = await search_song_by_url(url, message, uow, False)
     if video_info is None:
         return
 
@@ -1551,6 +1569,60 @@ async def list_volume_change_points(message: Message, uow: UnitOfWork):
     lines = ["Список точок зміни гучності:"]
     for point in points:
         lines.append(f"{point.time.strftime('%H:%M')} -> {point.volume}%")
+
+    await message.answer("\n".join(lines))
+
+
+async def add_block_phrase(message: Message, uow: UnitOfWork):
+    phrase = get_text_after_command(message)
+    if not phrase:
+        await message.answer("Використання: /add_block_phrase одне або кілька слів")
+        return
+
+    phrase = phrase.lower()
+    existing = await uow.block_phrases.find_one(BlockPhrase.phrase == phrase)
+
+    if existing:
+        await message.answer("Така фраза вже існує")
+        return
+
+    await uow.block_phrases.create(
+        BlockPhrase(
+            phrase=phrase, set_by=message.from_user.id, timestamp=datetime.now()
+        )
+    )
+    await uow.flush()
+    await message.answer("Фраза додана в базу даних")
+
+
+async def delete_block_phrase(message: Message, uow: UnitOfWork):
+    phrase = get_text_after_command(message)
+    if not phrase:
+        await message.answer("Використання: /delete_block_phrase одне або кілька слів")
+        return
+
+    phrase = phrase.lower()
+    existing = await uow.block_phrases.find_one(BlockPhrase.phrase == phrase)
+
+    if not existing:
+        await message.answer("Такої фрази не існує")
+        return
+
+    await uow.block_phrases.delete(BlockPhrase.phrase == phrase)
+    await uow.flush()
+    await message.answer("Фраза видалена")
+
+
+async def list_block_phrases(message: Message, uow: UnitOfWork):
+    phrases = await uow.block_phrases.find()
+
+    if not phrases:
+        await message.answer("Немає збережених фраз для блокування")
+        return
+
+    lines = ["Список фраз для блокування:"]
+    for i, phrase in enumerate(phrases, 1):
+        lines.append(f"{i}) {html.escape(phrase.phrase)}")
 
     await message.answer("\n".join(lines))
 

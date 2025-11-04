@@ -6,6 +6,7 @@ from aiogram_dialog.widgets.kbd import Start, Row
 from aiogram_dialog.widgets.markup.reply_keyboard import ReplyKeyboardFactory
 from aiogram_dialog.widgets.text import Const
 
+from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.feedback_menu import ban_check
 from app.bot.routers.order_menu import search_song_by_url
 from app.bot.states.feedback import FeedbackStates
@@ -21,7 +22,8 @@ async def forward_to_order(
 ) -> None:
     await ban_check(manager)
 
-    song_info = await search_song_by_url(message.text, message, True)
+    uow: UnitOfWork = manager.middleware_data["uow"]
+    song_info = await search_song_by_url(message.text, message, uow, True)
     if song_info is None:
         return
 

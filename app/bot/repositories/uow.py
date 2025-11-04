@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot.models import Base
 from app.bot.repositories.auto_moderation import AutoModerationRepository
 from app.bot.repositories.banned_user import BannedUserRepository
+from app.bot.repositories.block_words import BlockPhraseRepository
 from app.bot.repositories.day_state import DayStateRepository
 from app.bot.repositories.ether import EtherRepository
 from app.bot.repositories.order import OrderRepository
@@ -21,6 +22,7 @@ class UnitOfWork:
     banned_users: BannedUserRepository
     auto_moderation: AutoModerationRepository
     volume_change_points: VolumeChangePointRepository
+    block_phrases: BlockPhraseRepository
 
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -30,6 +32,7 @@ class UnitOfWork:
         self.banned_users = BannedUserRepository(self._session)
         self.auto_moderation = AutoModerationRepository(self._session)
         self.volume_change_points = VolumeChangePointRepository(self._session)
+        self.block_phrases = BlockPhraseRepository(self._session)
 
     async def __aenter__(self):
         return self

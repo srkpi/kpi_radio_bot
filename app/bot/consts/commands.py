@@ -71,6 +71,18 @@ ADMIN_COMMANDS = [
         description="Показати список точок зміни гучності",
     ),
     BotCommand(
+        command="add_block_phrase",
+        description="Додати фразу для блокування замовлення пісні",
+    ),
+    BotCommand(
+        command="delete_block_phrase",
+        description="Видалити фразу для блокування замовлення пісні",
+    ),
+    BotCommand(
+        command="list_block_phrases",
+        description="Показати фрази для блокування замовлень",
+    ),
+    BotCommand(
         command="not_moderated",
         description="Список пісень, які очікують на модерацію",
     ),

@@ -14,6 +14,7 @@ from app.bot.routers.errors import (
 from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
 from app.bot.routers.commands import (
+    add_block_phrase,
     alert,
     auto_moderation_list,
     ban,
@@ -21,7 +22,9 @@ from app.bot.routers.commands import (
     ban_with_feedback,
     blacklist,
     cancel,
+    delete_block_phrase,
     help_command,
+    list_block_phrases,
     list_volume_change_points,
     manual_list,
     not_moderated,
@@ -229,6 +232,22 @@ router.message.register(
 router.message.register(
     list_volume_change_points,
     Command("list_volume_change_points"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+
+router.message.register(
+    add_block_phrase,
+    Command("add_block_phrase"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    delete_block_phrase,
+    Command("delete_block_phrase"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    list_block_phrases,
+    Command("list_block_phrases"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 

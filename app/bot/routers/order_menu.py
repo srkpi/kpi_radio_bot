@@ -98,7 +98,7 @@ async def audio_input(
 
 
 async def search_song_by_url(
-    url: str, message: Message, apply_restrictions: bool
+    url: str, message: Message, uow: UnitOfWork, apply_restrictions: bool
 ) -> dict | None:
     url = re.sub(r"&list=[a-zA-Z0-9]+", "", url)
     is_spotify = False
@@ -182,6 +182,50 @@ async def search_song_by_url(
         #        "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
         #    )
 
+    if apply_restrictions:
+        phrases = await uow.block_phrases.find()
+        if phrases:
+            title_lower = title.lower()
+            matched = next(
+                (phrase.phrase for phrase in phrases if phrase.phrase in title_lower), None
+            )
+
+            if matched:
+                escaped_match = html.escape(matched)
+                await message.answer(
+                    f"🚫 Я не буду програвати цю пісню! Заголовок містить: {escaped_match}"
+                )
+                spotify_link = f' [<a href="{url}">Spotify</a>]' if is_spotify else ""
+
+                if duration and duration > 0:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    duration_label = f"⏳ {minutes}:{seconds:02}\n"
+                else:
+                    duration_label = ""
+
+                if language:
+                    language_prefix = get_language_flag(language) + " "
+                else:
+                    language_prefix = ""
+
+                youtube_url = (
+                    f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
+                )
+                youtube_music_link = (
+                    f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
+                )
+
+                await message.bot.send_message(
+                    settings.ADMINS_CHAT_ID,
+                    f"🚫 {language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
+                    f"{duration_label}"
+                    f"від {message.from_user.mention_html()}\n"
+                    f"Я відмовився програвати цю пісню, бо вона містить: {escaped_match}",
+                    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+                )
+                return
+
     return {
         "title": title_formatted,
         "video_id": video_id,
@@ -194,7 +238,8 @@ async def search_song_by_url(
 async def text_input(
     message: Message, message_input: MessageInput, manager: DialogManager
 ):
-    song_info = await search_song_by_url(message.text, message, True)
+    uow: UnitOfWork = manager.middleware_data["uow"]
+    song_info = await search_song_by_url(message.text, message, uow, True)
     if song_info is None:
         return
 
