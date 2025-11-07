@@ -41,6 +41,9 @@ with open("filtered_words.txt", "r", encoding="utf-8") as f:
 with open("whitelist.txt", "r", encoding="utf-8") as f:
     WHITELIST_UK = set(f.read().splitlines())
 
+with open("russian_authors.txt", "r", encoding="utf-8") as f:
+    RUSSIAN_AUTHORS = [line.lower() for line in f.read().splitlines()]
+
 
 def detect_language_advanced(title: str) -> str:
     ukrainian_chars = {"є", "і", "ї"}
@@ -183,48 +186,60 @@ async def search_song_by_url(
         #    )
 
     if apply_restrictions:
-        phrases = await uow.block_phrases.find()
-        if phrases:
-            title_lower = title.lower()
-            matched = next(
-                (phrase.phrase for phrase in phrases if phrase.phrase in title_lower), None
+        full_title = song_full_title.lower()
+        matched = next(
+            (author for author in RUSSIAN_AUTHORS if author in full_title), None
+        )
+        is_russian = matched is not None
+
+        if not matched:
+            phrases = await uow.block_phrases.find()
+            if phrases:
+                matched = next(
+                    (
+                        phrase.phrase
+                        for phrase in phrases
+                        if phrase.phrase in full_title
+                    ),
+                    None,
+                )
+
+        if matched:
+            escaped_match = html.escape(matched)
+            reason = "Російський автор:" if is_russian else "Назва містить:"
+            await message.answer(
+                f"🚫 Я не буду програвати цю пісню! {reason} {escaped_match}"
+            )
+            spotify_link = f' [<a href="{url}">Spotify</a>]' if is_spotify else ""
+
+            if duration and duration > 0:
+                minutes = duration // 60
+                seconds = duration % 60
+                duration_label = f"⏳ {minutes}:{seconds:02}\n"
+            else:
+                duration_label = ""
+
+            if language:
+                language_prefix = get_language_flag(language) + " "
+            else:
+                language_prefix = ""
+
+            youtube_url = (
+                f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
+            )
+            youtube_music_link = (
+                f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
             )
 
-            if matched:
-                escaped_match = html.escape(matched)
-                await message.answer(
-                    f"🚫 Я не буду програвати цю пісню! Заголовок містить: {escaped_match}"
-                )
-                spotify_link = f' [<a href="{url}">Spotify</a>]' if is_spotify else ""
-
-                if duration and duration > 0:
-                    minutes = duration // 60
-                    seconds = duration % 60
-                    duration_label = f"⏳ {minutes}:{seconds:02}\n"
-                else:
-                    duration_label = ""
-
-                if language:
-                    language_prefix = get_language_flag(language) + " "
-                else:
-                    language_prefix = ""
-
-                youtube_url = (
-                    f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
-                )
-                youtube_music_link = (
-                    f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
-                )
-
-                await message.bot.send_message(
-                    settings.ADMINS_CHAT_ID,
-                    f"🚫 {language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
-                    f"{duration_label}"
-                    f"від {message.from_user.mention_html()}\n"
-                    f"Я відмовився програвати цю пісню, бо вона містить: {escaped_match}",
-                    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-                )
-                return
+            await message.bot.send_message(
+                settings.ADMINS_CHAT_ID,
+                f"🚫 {language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
+                f"{duration_label}"
+                f"від {message.from_user.mention_html()}\n"
+                f"Я відмовився програвати цю пісню! {reason} {escaped_match}",
+                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+            )
+            return
 
     return {
         "title": title_formatted,

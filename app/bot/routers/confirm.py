@@ -139,6 +139,7 @@ async def confirm_order(
                     ether_not_played_orders_len = len(ether_not_played_orders)
                     total_duration = sum(o.duration for o in ether_not_played_orders)
 
+                    minus_playing = 0
                     if current_playing:
                         minus_playing = max(
                             round(
