@@ -2,9 +2,10 @@ import html
 import operator
 from datetime import date, datetime, timedelta, time
 from urllib.parse import urlparse, parse_qs
-from typing import Any
+from typing import Any, List
 import re
 
+import regex
 from ytmusicapi import YTMusic
 
 from aiogram import Bot
@@ -60,6 +61,18 @@ def detect_language_advanced(title: str) -> str:
         return "uk"
 
     return "ru"
+
+
+def compile_block_phrase_pattern(phrases: List[str]):
+    escaped_phrases = [regex.escape(a.lower()) for a in phrases if a.strip()]
+    escaped_phrases.sort(key=len, reverse=True)
+    group = "(?:" + "|".join(escaped_phrases) + ")"
+    pattern = rf"(?<![\p{{L}}\p{{N}}]){group}(?![\p{{L}}\p{{N}}])"
+
+    return regex.compile(pattern, flags=regex.IGNORECASE)
+
+
+RUSSIAN_AUTHORS_PATTERN = compile_block_phrase_pattern(RUSSIAN_AUTHORS)
 
 
 def extract_youtube_video_id(url: str) -> str | None:
@@ -187,25 +200,20 @@ async def search_song_by_url(
 
     if apply_restrictions:
         full_title = song_full_title.lower()
-        matched = next(
-            (author for author in RUSSIAN_AUTHORS if author in full_title), None
-        )
+        matched = RUSSIAN_AUTHORS_PATTERN.search(full_title)
         is_russian = matched is not None
 
         if not matched:
             phrases = await uow.block_phrases.find()
             if phrases:
-                matched = next(
-                    (
-                        phrase.phrase
-                        for phrase in phrases
-                        if phrase.phrase in full_title
-                    ),
-                    None,
+                block_phrases = compile_block_phrase_pattern(
+                    [phrase.phrase for phrase in phrases if phrase.phrase in full_title]
                 )
+                matched = block_phrases.search(full_title)
 
         if matched:
-            escaped_match = html.escape(matched)
+            matched_str = matched if isinstance(matched, str) else matched.group(0)
+            escaped_match = html.escape(matched_str)
             reason = "Російський автор:" if is_russian else "Назва містить:"
             await message.answer(
                 f"🚫 Я не буду програвати цю пісню! {reason} {escaped_match}"
