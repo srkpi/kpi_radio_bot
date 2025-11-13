@@ -212,42 +212,43 @@ async def search_song_by_url(
                 matched = block_phrases.search(full_title)
 
         if matched:
-            matched_str = matched if isinstance(matched, str) else matched.group(0)
-            escaped_match = html.escape(matched_str)
-            reason = "Російський автор:" if is_russian else "Назва містить:"
-            await message.answer(
-                f"🚫 Я не буду програвати цю пісню! {reason} {escaped_match}"
-            )
-            spotify_link = f' [<a href="{url}">Spotify</a>]' if is_spotify else ""
+            matched_str = matched.group(0).strip()
+            if matched_str:
+                escaped_match = html.escape(matched_str)
+                reason = "Російський автор:" if is_russian else "Назва містить:"
+                await message.answer(
+                    f"🚫 Я не буду програвати цю пісню! {reason} {escaped_match}"
+                )
+                spotify_link = f' [<a href="{url}">Spotify</a>]' if is_spotify else ""
 
-            if duration and duration > 0:
-                minutes = duration // 60
-                seconds = duration % 60
-                duration_label = f"⏳ {minutes}:{seconds:02}\n"
-            else:
-                duration_label = ""
+                if duration and duration > 0:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    duration_label = f"⏳ {minutes}:{seconds:02}\n"
+                else:
+                    duration_label = ""
 
-            if language:
-                language_prefix = get_language_flag(language) + " "
-            else:
-                language_prefix = ""
+                if language:
+                    language_prefix = get_language_flag(language) + " "
+                else:
+                    language_prefix = ""
 
-            youtube_url = (
-                f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
-            )
-            youtube_music_link = (
-                f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
-            )
+                youtube_url = (
+                    f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
+                )
+                youtube_music_link = (
+                    f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
+                )
 
-            await message.bot.send_message(
-                settings.ADMINS_CHAT_ID,
-                f"🚫 {language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
-                f"{duration_label}"
-                f"від {message.from_user.mention_html()}\n"
-                f"Я відмовився програвати цю пісню! {reason} {escaped_match}",
-                message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-            )
-            return
+                await message.bot.send_message(
+                    settings.ADMINS_CHAT_ID,
+                    f"🚫 {language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
+                    f"{duration_label}"
+                    f"від {message.from_user.mention_html()}\n"
+                    f"Я відмовився програвати цю пісню! {reason} {escaped_match}",
+                    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
+                )
+                return
 
     return {
         "title": title_formatted,
