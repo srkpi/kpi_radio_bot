@@ -125,7 +125,8 @@ async def search_song_by_url(
         if track_info:
             spotify_title = track_info["name"]
             artist = track_info["artists"][0]["name"]
-            song_full_title = f"{spotify_title} {artist}"
+            song_original_full_title = f"{spotify_title} {artist}"
+            song_full_title = song_original_full_title
 
             song_search = ytmusic.search(song_full_title, filter="songs", limit=1)
             if not len(song_search):
@@ -177,7 +178,8 @@ async def search_song_by_url(
         title = video_details["title"]
         duration = int(video_details["lengthSeconds"])
         author = video_details["author"]
-        song_full_title = remove_brackets(f"{title} {author}")
+        song_original_full_title = f"{title} {author}"
+        song_full_title = remove_brackets(song_original_full_title)
         title_formatted = remove_brackets(title)
     else:
         await message.answer(
@@ -199,7 +201,7 @@ async def search_song_by_url(
         #    )
 
     if apply_restrictions:
-        full_title = song_full_title.lower()
+        full_title = song_original_full_title.lower()
         matched = RUSSIAN_AUTHORS_PATTERN.search(full_title)
         is_russian = matched is not None
 
