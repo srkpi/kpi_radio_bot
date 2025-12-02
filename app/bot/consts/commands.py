@@ -38,8 +38,13 @@ ADMIN_COMMANDS = [
         command="force_playlist",
         description="Примусове програвання плейлісту протягом етеру (+ url)",
     ),
+    BotCommand(
+        command="force_playlist_once",
+        description="Примусове одноразове програвання плейлісту протягом етеру (+ url)",
+    ),
     BotCommand(command="traktor", description="Їде трактор митися"),
     BotCommand(command="shark", description="Baby Shark Dance"),
+    BotCommand(command="snow", description="Сніжинки пушинки"),
     BotCommand(
         command="auto_moderation",
         description="Список пісень автоматичної модерації",

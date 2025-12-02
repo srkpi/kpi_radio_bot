@@ -67,7 +67,7 @@ def compile_block_phrase_pattern(phrases: List[str]):
     escaped_phrases = [regex.escape(a.lower()) for a in phrases if a.strip()]
     escaped_phrases.sort(key=len, reverse=True)
     group = "(?:" + "|".join(escaped_phrases) + ")"
-    pattern = rf"(?<![\p{{L}}\p{{N}}]){group}(?![\p{{L}}\p{{N}}])"
+    pattern = rf"\b{group}\b"
 
     return regex.compile(pattern, flags=regex.IGNORECASE)
 
@@ -414,6 +414,11 @@ async def on_ether_selected(
             else:
                 play_time = datetime.combine(datetime.today().date(), start_time)
                 play_time_str = start_time.strftime("%H:%M")
+
+                if play_time + timedelta(seconds=duration) > datetime.combine(
+                    ether.ether_date, ether.end_time
+                ):
+                    continue  # Пісня не влазе в етер
 
         video_id = manager.dialog_data["audio"].get("video_id")
         same_orders = await uow.orders.find(Order.video_id == video_id)

@@ -413,6 +413,11 @@ async def shark(message: Message, uow: UnitOfWork):
     await message.answer("Baby Shark Dance!")
 
 
+async def snow(message: Message, uow: UnitOfWork):
+    await force_play_song(uow, "music/snow.mp3")
+    await message.answer("Сніжинки пушинки!")
+
+
 async def holiday(message: Message, uow: UnitOfWork):
     arg = get_text_after_command(message)
     dates, _ = parse_dates_and_reason(arg)
@@ -1332,11 +1337,11 @@ async def force_play(message: Message, uow: UnitOfWork):
     await message.reply(f"⏯️ Примусово програється: {video_info['title']}")
 
 
-async def force_playlist(message: Message, uow: UnitOfWork):
+async def force_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
     url = get_text_after_command(message)
     if not url:
         await message.reply(
-            "Невірний формат команди! /force_playlist {youtube_playlist_url}"
+            "Невірний формат команди! /команда {youtube_playlist_url}"
         )
         return
 
@@ -1477,10 +1482,25 @@ async def force_playlist(message: Message, uow: UnitOfWork):
             seconds_filled += duration + AVERAGE_SONG_SWITCH_DELAY
             order_idx += 1
 
+        if is_once:
+            break
+
     await uow.flush()
-    await message.reply(
-        f"Поточний етер заповнено треками з плейлиста! Всього додано: {order_idx} треків."
-    )
+
+    if is_once:
+        await message.reply(f"Поcтавлено на програвання {order_idx} треків з плейліста")
+    else:
+        await message.reply(
+            f"Поточний етер заповнено треками з плейлиста! Всього додано: {order_idx} треків."
+        )
+
+
+async def force_playlist(message: Message, uow: UnitOfWork):
+    await force_play_playlist(message, uow, False)
+
+
+async def force_playlist_once(message: Message, uow: UnitOfWork):
+    await force_play_playlist(message, uow, True)
 
 
 async def add_volume_change_point(message: Message, uow: UnitOfWork):
@@ -1579,7 +1599,7 @@ async def add_block_phrase(message: Message, uow: UnitOfWork):
         await message.answer("Використання: /add_block_phrase одне або кілька слів")
         return
 
-    phrase = phrase.lower()
+    phrase = phrase.strip().lower()
     existing = await uow.block_phrases.find_one(BlockPhrase.phrase == phrase)
 
     if existing:
@@ -1601,7 +1621,7 @@ async def delete_block_phrase(message: Message, uow: UnitOfWork):
         await message.answer("Використання: /delete_block_phrase одне або кілька слів")
         return
 
-    phrase = phrase.lower()
+    phrase = phrase.strip().lower()
     existing = await uow.block_phrases.find_one(BlockPhrase.phrase == phrase)
 
     if not existing:

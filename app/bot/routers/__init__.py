@@ -23,6 +23,7 @@ from app.bot.routers.commands import (
     blacklist,
     cancel,
     delete_block_phrase,
+    force_playlist_once,
     help_command,
     list_block_phrases,
     list_volume_change_points,
@@ -37,6 +38,7 @@ from app.bot.routers.commands import (
     set_temp_volume,
     set_volume,
     shark,
+    snow,
     start,
     skip,
     stop,
@@ -201,6 +203,11 @@ router.message.register(
     Command("shark"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
+router.message.register(
+    snow,
+    Command("snow"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
 
 router.message.register(
     restart,
@@ -216,6 +223,11 @@ router.message.register(
 router.message.register(
     force_playlist,
     Command("force_playlist"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    force_playlist_once,
+    Command("force_playlist_once"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 
