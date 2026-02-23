@@ -1,6 +1,7 @@
 import aiohttp
 import ngrok
 import requests
+from datetime import datetime
 
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommandScopeAllPrivateChats, BotCommandScopeChat
@@ -52,10 +53,42 @@ def update_monitor_url() -> None:
         requests.request("PATCH", url, headers=headers, json=payload)
 
 
+def get_clean_ngrok_tokens() -> list[str]:
+    raw = settings.NGROK_AUTHTOKEN.get_secret_value()
+    tokens = [token.strip() for token in raw.split(",") if token.strip()]
+
+    if not tokens:
+        raise ValueError("No NGROK_AUTHTOKEN provided")
+
+    return tokens
+
+
+def get_days_in_month(dt: datetime) -> int:
+    next_month = datetime(dt.year + (dt.month // 12), (dt.month % 12) + 1, 1)
+    return (next_month - datetime(dt.year, dt.month, 1)).days
+
+
+def pick_token_by_date(
+    tokens: list[str], now: datetime | None = None
+) -> tuple[str, int]:
+    now = now or datetime.now()
+    if len(tokens) == 1:
+        return tokens[0], 0
+
+    days_in_month = get_days_in_month(now)
+    index = min(len(tokens) - 1, (now.day - 1) * len(tokens) // days_in_month)
+
+    return tokens[index], index
+
+
 def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        ngrok.set_auth_token(settings.NGROK_AUTHTOKEN.get_secret_value())
+        tokens = get_clean_ngrok_tokens()
+        token, index = pick_token_by_date(tokens)
+        print("Using NGROK token #%s of %s", index + 1, len(tokens))
+
+        ngrok.set_auth_token(token)
         tunnel = await ngrok.connect(8000)
         settings.BASE_URL = AnyUrl(tunnel.url())
         await dispatcher.emit_startup(**workflow_data)
