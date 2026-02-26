@@ -15,6 +15,7 @@ from app.api.routes.alert import alert_router
 from app.api.routes.index import index_router
 from app.api.routes.stream import stream_router
 from app.api.routes.webhook import webhook_router
+from app.api.routes.statistics import statistics_router
 from app.api.exception_handler import exception_handler
 from app.api.stubs import BotStub, DispatcherStub, SecretStub
 from app.bot.consts.commands import ADMIN_COMMANDS, USER_COMMANDS
@@ -140,6 +141,7 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
     app.include_router(webhook_router)
     app.include_router(alert_router)
     app.include_router(stream_router)
+    app.include_router(statistics_router)
 
     workflow_data = {
         "app": app,

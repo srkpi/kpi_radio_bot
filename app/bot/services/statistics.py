@@ -1,3 +1,4 @@
+import asyncio
 import json
 import requests
 
@@ -14,6 +15,8 @@ from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 
 bot_launch_time = datetime.now()
+statistics = {}
+_update_statistics_lock = asyncio.Lock()
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -171,7 +174,7 @@ async def _fetch_ethers(
     return ethers_formatted
 
 
-async def _get_statistic(uow: UnitOfWork) -> dict:
+async def _get_statistics(uow: UnitOfWork) -> dict:
     start_time = perf_counter()
 
     banned_users = await _fetch_banned_users(uow)
@@ -195,36 +198,20 @@ async def _get_statistic(uow: UnitOfWork) -> dict:
     }
 
 
-def _upload_to_json_silo(data: object) -> None:
-    url = f"https://api.jsonsilo.com/api/v1/manage/{settings.JSON_SILO_UUID.get_secret_value()}"
-    headers = {
-        "X-MAN-API": settings.JSON_SILO_KEY.get_secret_value(),
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "filename": "radio_kpi",
-        "file_data": data,
-        "is_public": True,
-    }
-    payload_json = json.dumps(
-        payload,
-        cls=CustomEncoder,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
+async def update_statistics(async_session: async_sessionmaker[AsyncSession]) -> None:
+    if _update_statistics_lock.locked():
+        return
 
-    response = requests.request("PATCH", url, data=payload_json, headers=headers)
-    response.raise_for_status()
+    global statistics
+    async with _update_statistics_lock:
+        try:
+            async with async_session() as session, session.begin():
+                async with UnitOfWork(session) as uow:
+                    statistics = await _get_statistics(uow)
 
-
-async def update_statistic(async_session: async_sessionmaker[AsyncSession]) -> None:
-    try:
-        async with async_session() as session, session.begin():
-            async with UnitOfWork(session) as uow:
-                statistic = await _get_statistic(uow)
-
-        _upload_to_json_silo(statistic)
-        requests.request("GET", settings.STATISTIC_HEARTBEAT_URL)
-    except Exception as e:
-        print(e)
-        requests.request("GET", urljoin(str(settings.STATISTIC_HEARTBEAT_URL), "fail"))
+            requests.request("GET", str(settings.STATISTICS_HEARTBEAT_URL))
+        except Exception as e:
+            print(e)
+            requests.request(
+                "GET", urljoin(str(settings.STATISTICS_HEARTBEAT_URL), "fail")
+            )

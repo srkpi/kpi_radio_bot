@@ -12,7 +12,7 @@ from app.bot.player.mpv_player import player, get_current_track
 from app.bot.player.streamer import ffmpeg_streamer
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
-from app.bot.services.statistic import update_statistic
+from app.bot.services.statistics import update_statistics
 from app.bot.services.volume_changer import VolumeChanger
 from app.database import sessionmaker, engine
 from app.redis import redis_connection
@@ -46,7 +46,7 @@ async def on_startup(bot: Bot) -> None:
     await asyncio.sleep(10)
 
     try:
-        await update_statistic(sessionmaker)
+        await update_statistics(sessionmaker)
     except Exception as e:
         print(e)
 

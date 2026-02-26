@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.player.mpv_player import player, announcement_file_path, get_current_track
 from app.bot.repositories.uow import UnitOfWork
-from app.bot.services.statistic import update_statistic
+from app.bot.services.statistics import update_statistics
 from app.bot.services.volume_changer import VolumeChanger
 from app.settings import settings
 
@@ -53,9 +53,9 @@ class Scheduler:
 
         self._scheduler.add_job(self.minute, "cron", hour=9)
         self._scheduler.add_job(
-            update_statistic,
+            update_statistics,
             "interval",
-            hours=3,
+            hours=1,
             args=(self._async_sessionmaker,),
         )
         self._scheduler.add_job(
