@@ -5,7 +5,7 @@ import requests
 from datetime import date, datetime, time
 from enum import Enum
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-from typing import Optional, TypeAlias, Union
+from typing import Any, Optional, TypeAlias, Union
 from time import perf_counter
 from urllib.parse import urljoin
 
@@ -174,7 +174,7 @@ async def _fetch_ethers(
     return ethers_formatted
 
 
-async def _get_statistics(uow: UnitOfWork) -> dict:
+async def _collect_statistics(uow: UnitOfWork) -> dict:
     start_time = perf_counter()
 
     banned_users = await _fetch_banned_users(uow)
@@ -198,6 +198,10 @@ async def _get_statistics(uow: UnitOfWork) -> dict:
     }
 
 
+def get_statistics() -> dict[str, Any]:
+    return statistics.copy()
+
+
 async def update_statistics(async_session: async_sessionmaker[AsyncSession]) -> None:
     if _update_statistics_lock.locked():
         return
@@ -207,8 +211,7 @@ async def update_statistics(async_session: async_sessionmaker[AsyncSession]) -> 
         try:
             async with async_session() as session, session.begin():
                 async with UnitOfWork(session) as uow:
-                    statistics.clear()
-                    statistics.update(await _get_statistics(uow))
+                    statistics = await _collect_statistics(uow)
 
             requests.request("GET", str(settings.STATISTICS_HEARTBEAT_URL))
         except Exception as e:

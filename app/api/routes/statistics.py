@@ -1,13 +1,14 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.bot.services.statistics import statistics
+from app.bot.services.statistics import get_statistics
 
 statistics_router = APIRouter(prefix="/statistics", tags=["Statistics"])
 
 
 @statistics_router.get("")
 async def webhook_route() -> JSONResponse:
+    statistics = get_statistics()
     if statistics:
         return JSONResponse(status_code=200, content=statistics)
 
