@@ -7,7 +7,7 @@ statistics_router = APIRouter(prefix="/statistics", tags=["Statistics"])
 
 
 @statistics_router.get("")
-async def webhook_route() -> JSONResponse:
+async def get_statistics_route() -> JSONResponse:
     statistics = get_statistics()
     if statistics:
         return JSONResponse(status_code=200, content=statistics)

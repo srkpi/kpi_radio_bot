@@ -1,8 +1,10 @@
 import asyncio
 import json
+import tempfile
 import requests
 
 from datetime import date, datetime, time
+from pathlib import Path
 from enum import Enum
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from typing import Any, Optional, TypeAlias, Union
@@ -14,8 +16,9 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.repositories.uow import UnitOfWork
 from app.settings import settings
 
+STATS_FILE = Path("statistics.json")
+
 bot_launch_time = datetime.now()
-statistics = {}
 _update_statistics_lock = asyncio.Lock()
 
 
@@ -199,20 +202,34 @@ async def _collect_statistics(uow: UnitOfWork) -> dict:
 
 
 def get_statistics() -> dict[str, Any]:
-    return statistics.copy()
+    if not STATS_FILE.exists():
+        return {}
+
+    with STATS_FILE.open() as f:
+        return json.load(f)
+
+
+async def save_statistics_to_file(data: dict[str, Any]) -> None:
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=".") as tmp:
+        json.dump(data, tmp)
+        tmp.flush()
+
+    Path(tmp.name).replace(STATS_FILE)
 
 
 async def update_statistics(async_session: async_sessionmaker[AsyncSession]) -> None:
     if _update_statistics_lock.locked():
         return
 
-    global statistics
+    print("Collecting statistics")
     async with _update_statistics_lock:
         try:
             async with async_session() as session, session.begin():
                 async with UnitOfWork(session) as uow:
                     statistics = await _collect_statistics(uow)
 
+            await save_statistics_to_file(statistics)
+            print("Statistics collected")
             requests.request("GET", str(settings.STATISTICS_HEARTBEAT_URL))
         except Exception as e:
             print(e)
