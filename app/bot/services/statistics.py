@@ -7,7 +7,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 from enum import Enum
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-from typing import Any, Optional, TypeAlias, Union
+from typing import Any, Literal, Optional, TypeAlias, Union
 from time import perf_counter
 from urllib.parse import urljoin
 
@@ -83,10 +83,10 @@ async def _fetch_date_states(
 
 
 OrderRow: TypeAlias = Union[
-    list[int, int, OrderStates],
-    list[int, int, OrderStates, Optional[datetime]],
-    list[int, int, OrderStates, Optional[datetime], Optional[datetime]],
-    list[
+    tuple[int, int, OrderStates],
+    tuple[int, int, OrderStates, Optional[datetime]],
+    tuple[int, int, OrderStates, Optional[datetime], Optional[datetime]],
+    tuple[
         int,
         int,
         OrderStates,
@@ -129,12 +129,13 @@ async def _fetch_songs_with_orders(
             order_state = OrderStates.QUEUED
 
         song_id = song_mapper.get(video_id)
+        order_title = order.title or ""
         if song_id is None:
             song_id = len(songs_formatted)
             song_mapper[video_id] = song_id
-            songs_formatted.append((order.title, order.duration, video_id))
+            songs_formatted.append((order_title, order.duration, video_id))
         else:
-            songs_formatted[song_id] = (order.title, order.duration, video_id)
+            songs_formatted[song_id] = (order_title, order.duration, video_id)
 
         song_data = [
             song_id,
@@ -151,26 +152,31 @@ async def _fetch_songs_with_orders(
                 if order.play_start:
                     song_data.append(order.play_start)
 
-        orders_formatted.append(song_data)
+        orders_formatted.append(tuple(song_data))
 
     return songs_formatted, orders_formatted
 
 
 async def _fetch_ethers(
     uow: UnitOfWork,
-) -> list[dict[str, Union[list[time, time, date], list[time, time, date, 1]]]]:
+) -> dict[str, Union[tuple[time, time, date], tuple[time, time, date, Literal[1]]]]:
     ethers_formatted = {}
     ethers = await uow.ethers.find()
 
     for ether in ethers:
-        data = [
-            ether.start_time,
-            ether.end_time,
-            ether.ether_date,
-        ]
-
         if ether.cancelled:
-            data.append(1)
+            data = (
+                ether.start_time,
+                ether.end_time,
+                ether.ether_date,
+                1,
+            )
+        else:
+            data = (
+                ether.start_time,
+                ether.end_time,
+                ether.ether_date,
+            )
 
         ethers_formatted[str(ether.id)] = data
 
@@ -211,7 +217,13 @@ def get_statistics() -> dict[str, Any]:
 
 async def save_statistics_to_file(data: dict[str, Any]) -> None:
     with tempfile.NamedTemporaryFile("w", delete=False, dir=".") as tmp:
-        json.dump(data, tmp)
+        json.dump(
+            data,
+            tmp,
+            cls=CustomEncoder,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
         tmp.flush()
 
     Path(tmp.name).replace(STATS_FILE)
