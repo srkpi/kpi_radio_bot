@@ -207,7 +207,8 @@ async def update_statistics(async_session: async_sessionmaker[AsyncSession]) -> 
         try:
             async with async_session() as session, session.begin():
                 async with UnitOfWork(session) as uow:
-                    statistics = await _get_statistics(uow)
+                    statistics.clear()
+                    statistics.update(await _get_statistics(uow))
 
             requests.request("GET", str(settings.STATISTICS_HEARTBEAT_URL))
         except Exception as e:
