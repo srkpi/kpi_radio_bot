@@ -1,251 +1,617 @@
-Аndy Day
-Leonid Rudenko
-Цветĸoff
-Aerofeel5
-Airsand
-Aiwaska
-Alessa Khin
-Alex Aveiro
-Alex Grafton
-Alex Union
-Alexander Belousov
-Alexander Popov
-Alexandr Craft
-Amvy
-Anatolie
-Andrey Exx
-Ant Art
-Anton Ishutin
-Anturage
-Anza
-DJ Boyko
-AQUO
-Arty
-Astero
-Audiense
-Aurosonic
-Azamat Agraba
-Banghook
-Bes
-blaktone
-Bobina
-Borey
-Bragken
-Burlyaev
-Cadillac Express
-Che&Mos
-Chertkovski
-Chester Young
-Cosmonaut
-Darknezz
-Deecross
-Deen West
-Deep Tone
-Delfee
-Denis Bravo
-Denis First
-Denis Kenzo
-Deomid
-Deomind
-Digital Mess
-Dilator & Karas
-Dj Hepri
-Dj Novak
-Dmitry Hotline
-Dmitry Molosh
-DMITRY SID
-Do Magic
-Dr.Spy.der
-Dub Pepper
-Eclept
-Eddie G
-Eva Kim
-Evgeniy Nuzhnov
-F.A.R
-Fake Mood
-Far&High
-Final Request
-Fomichev
-Fonarev
-G-Pol
-Gaidukova
-Georgie Navi
-Going Deeper
-Max Gazer
-Goodiny
-Goom Gum
-grigore
-Grotesque
-Haipa
-Hepri
-Highlite
-Imanbek
-Ivan Spell
-Jahaya
-Jebby Jay
-Jonathan Touch
-Proff
-Jon.K
-Julia Turano
-Kapchiz
-KARPOVICH
-Kashin
-Katar
-Katie Pride
-Katrin Souza
-Keitz
-KIDY
-Eleonora
-kikkx
-KINKY SOUND
-KOCHETOV
-KOCMO
-Kolya Funk
-Kuman
-larocca
-Lay-far
-LIST
-M.E.E.R
-Magic Place
-Lizwi
-Magnit & Slider
-Maksim dark
-Margaryan
-Mari MaLe
-Mariam Key
-Matisse & Sadko
-Matvey Emerson
-Matvienkov
-Max Freeze
-Michael A
-Max Lyazgin
-Mayone
-Mazema
-Meg
-MELESHKIN
-Miron
-Modbit
-Nick Lawyer
-DJ SKIF
-MOLEX
-Monado
-Moonbeam
-Mr Morek
-Mr. Basic
-NAASA
-NATASHA WAX
-Nejtrino
-Nevelskiy
-Nina Kravits
-Anton Ishutin
-Nopopstar
-Numeric Space
-SHKRMN
-pizzaaftersex
-Povar
-Pphlegmatic Dogs
-Prokuror
-Qbas
-Qdream
-Roelbeat
-Rakurs
-Ramirez
-Raul Desid
-Relanium
-Gorilla Zippo
-Rompasso
-S.Birin
-Nekhristov
-Samir Kuliev
-Sergey Nomad
-Sevenever
-Savin
-Shapov
-Sharapov
-SKLV
-Sony Vibe
-Space Food
-Ayva
-Stasi Sanlin
-Sunbios
-Surmillo
-SVET
-Swanky Tunes
-Tali Muss
-the ataman
-the khitrov
-Tony Igy
-Tryger
-Turaniqa
-igor bartyuk
-Under Sanctions
-Unparalleled Things
-Vakabular
-Vancoo
-veednem
-Ver-Dikt
-Alex Spite
-Volac
-VS20
-W.D.L
-Maria Fila
-WilyamDeLove
-Xandl
-A4RIA
-Yasha F
-Yes No Maybe
-Yulia Niko
-Kinetika music
-Geminis
-MI.LA
-FAIRTONE
-keytarbi
-Brosso
-Oliver Poll
-Ambear
-dioxide
-R-Team
-Koala
-Evgenij Schu1z
-DMTW
-shan_tazh
-Nikita Rise
-Karimov Brothers
-CHIQUE
-Artem Spark
-Skyfall Beats
-Bulletrain
-zoff
-INVRS
-Papago
-SEVER
-Aiwaska
-3GGER
-Prana Flow
-Tescao
-Safaris
-Prospekt
-U-Jeen
-INNA JAYA
-DJ KIDY
-Nour
-Anton ZVQ
-A.ZVQ
-Antonsosed
-Alexandra Savvidi
-Alexander Savvidi
-SAVVIDI
-Alexey Zhurba
-Stogov
-Zuma Dionys
-Meadow Dawn
-Micaele
-Daniel Hokum
-Rapossa
-Geju
-Ishome
-Gusik
-Cutoff:Sky
-Evgheniia
-Doyeq
-yam nor
+10AGE
+Aljay
+Andro
+ANIKV
+ANNA ASTI
+Artik
+Asti
+ATL
+Big Baby Tape
+Bushido Zho
+DAVA
+Dabro
+DJ Leonid Rudenko
+DJ Smash
+Dora
+Dzharakhov
+Elman
+Emin
+FACE
+Feduk
+Flesh
+Fogel
+FRIENDLY THUG 52 NGG
+Gafur
+Gone.Fludd
+GSPD
+HammAli
+HENSY
+Instasamka
+IOWA
+Jakone
+JONY
+KARA KROSS
+KIZARU
+Konfuz
+Lizer
+LOVV66
+LSP
+LYRIQ
+MACAN
+Machete
+Markul
+Mary Gu
+MAYOT
+MIA BOYKA
+Miyagi
+MORGENSHTERN
+MOT
+Mujuice
+Navai
+Niletto
+Noize MC
+NЮ
+OBLADAET
+OG Buda
+PHARAOH
+Platina
+Rakhim
+Ramil'
+SALUKI
+SCALY MILANO
+Serebro
+SEVILLE
+Slava Marlow
+SLIMUS
+SODA LUV
+SQWOZ BAB
+ST
+t.A.T.u.
+T-Fest
+T-killah
+The Limba
+Toxi$
+VAVAN
+Xcho
+YUNG TRAWAY
+Zivert
+Zomb
+
+Авраам Руссо
+Агата Вильчик
+Аида Ведищева
+Айза
+Аким Апачев
+Алалыкина Мария
+Александр Барыкин
+Александр Буйнов
+Александр Васильев
+Александр Градский
+Александр Зацепин
+Александр Иванов
+Александр Кутиков
+Александр Малинин
+Александр Маршал
+Александр Медведев
+Александр Новиков
+Александр Панайотов
+Александр Ревва
+Александр Розенбаум
+Александр Серов
+Александр Скляр
+Александр Шоуа
+Александра Савельева
+Алексей Воробьев
+Алексей Глызин
+Алексей Гоман
+Алексей Кортнев
+Алексей Потехин
+Алексей Романов
+Алексей Чумаков
+Алена Апина
+Алена Свиридова
+Алена Швец
+Алина Гросу
+Алиса Вокс
+Алиса Мон
+Алла Пугачева
+Алсу
+Альбина Джанабаева
+Амирчик
+Анастасия Кочеткова
+Анастасия Спиридонова
+Анастасия Стоцкая
+Анатолий Цой
+Андрей Григорьев-Апполонов
+Андрей Губин
+Андрей Державин
+Андрей Князев
+Андрей Леницкий
+Андрей Макаревич
+Андрей Резников
+Анжелика Агурбаш
+Анжелика Варум
+Ани Лорак
+Анита Цой
+Анна Боронина
+Анна Герман
+Анна Плетнева
+Анна Седокова
+Анна Семенович
+Антон Беляев
+Антон Зацепин
+Антоха МС
+Аня Покров
+Аркадий Укупник
+Армен Григорян
+Арсений Бородин
+Артем Качер
+Артур Бабич
+Артур Беркут
+Артур Пирожков
+Асия
+Баста
+Батишта
+Богдан Титомир
+Борис Гребенщиков
+Борис Моисеев
+Бьянка
+Вадим Самойлов
+Валентина Толкунова
+Валерий Кипелов
+Валерий Леонтьев
+Валерий Меладзе
+Валерий Сюткин
+Валя Карнавал
+Ваня Дмитриенко
+Василий Вакуленко
+Вера Брежнева
+Вика Цыганова
+Виктор Королев
+Виктор Рыбин
+Виктор Салтыков
+Виктор Цой
+Виктор Чайка
+Виктория Дайнеко
+Виталий Гогунский
+Витас
+Влад Соколовский
+Влад Сташевский
+Влад Топалов
+Владимир Высоцкий
+Владимир Девятов
+Владимир Кристовский
+Владимир Кузьмин
+Владимир Маркин
+Владимир Пресняков
+Владимир Ткаченко
+Владимир Шахрин
+Всеволод Тарасов
+Вячеслав Бутусов
+Вячеслав Добрынин
+Вячеслав Малежик
+Вячеслав Мясников
+Гарик Богомазов
+Гарик Кричевский
+Гарик Сукачев
+Гарик Харламов
+Глеб Самойлов
+Глюкоза
+Гоша Куценко
+Григорий Лепс
+Григорий Фирсов
+Гуф
+Давид Манукян
+Дан Балан
+Данила Поперечный
+Даня Милохин
+Дарья Зотеева
+Дельфин
+Денис Клявер
+Денис Майданов
+Денис Рожков
+Децл
+Джиган
+Джимми Джи
+Диана Арбенина
+Диана Гурцкая
+Дима Билан
+Дмитрий Бикбаев
+Дмитрий Колдун
+Дмитрий Маликов
+Дмитрий Ревякин
+Дмитрий Фомин
+Дмитрий Хворостовский
+Доминик Джокер
+дора
+Ева Польна
+Евгений Григорьев
+Евгений Дятлов
+Евгений Маргулис
+Евгений Осин
+Егор Крид
+Егор Летов
+Екатерина Шаврина
+Елена Ваенга
+Елена Камбурова
+Елена Неклюдова
+Елена Темникова
+Елена Терлеева
+Елка
+Ефрем Амирамов
+Жанна Агузарова
+Жанна Фриске
+Женя Белоусов
+Женя Любич
+Звонкий
+Земфира
+Иван Дорн
+Иван Кучин
+Игорь Иванов
+Игорь Корнелюк
+Игорь Крутой
+Игорь Наджиев
+Игорь Николаев
+Игорь Саруханов
+Игорь Сорин
+Ида Галич
+Илья Лагутенко
+Илья Прусикин
+Илья Черт
+Инна Маликова
+Иосиф Кобзон
+Иракли
+Ирина Аллегрова
+Ирина Богушевская
+Ирина Дубцова
+Ирина Круг
+Ирина Нельсон
+Ирина Понаровская
+Ирина Салтыкова
+Ирина Тонева
+Кажэ Обойма
+Кай Метов
+Катя Адушкина
+Катя Лель
+Катя Огонек
+Катя Чехова
+Клава Кока
+Клавдия Шульженко
+Константин Кинчев
+Коста Лакоста
+Кравц
+Кристина Кошелева
+Кристина Орбакайте
+Ксения Новикова
+Лада Дэнс
+Лайма Вайкуле
+Лариса Долина
+Лариса Черникова
+Лев Лещенко
+Леонид Агутин
+Леонид Руденко
+Леонид Утесов
+Лера Масссква
+Леша Свик
+Лигалайз
+Лика Стар
+Лолита Милявская
+Лусине Геворкян
+Любовь Успенская
+Людмила Зыкина
+Людмила Сенчина
+Люся Чеботина
+МакSим
+Максим Галкин
+Максим Леонидов
+Максим Покровский
+Максим Фадеев
+Маргарита Суханкина
+Мари Краймбрери
+Марина Абросимова
+Марина Девятова
+Марина Хлебникова
+Мария Зайцева
+Мария Ржевская
+Марк Тишман
+Марьяна Ро
+Маша Вебер
+Маша Макарова
+Маша Распутина
+Митя Фомин
+Михаил Бублик
+Михаил Звездинский
+Михаил Круг
+Михаил Муромов
+Михаил Шуфутинский
+Михей
+Монеточка
+Мот
+Мукка
+Мурат Насыров
+Муслим Магомаев
+Мэйби Бэйби
+Надежда Бабкина
+Надежда Кадышева
+Найк Борзов
+Наталия Ветлицкая
+Наталия Гулькина
+Наталья Власова
+Наталья Подольская
+Наташа Королева
+Нейромонах Феофан
+Никита Малинин
+Никита Пресняков
+Николай Басков
+Николай Носков
+Николай Расторгуев
+Николай Трубач
+Николай Фоменко
+Нина Бродская
+Нюша
+Оксана Почепа
+Олег Газманов
+Олег Кензов
+Олег Майами
+Олег Митяев
+Олег Яковлев
+Ольга Бузова
+Ольга Зарубина
+Ольга Кормухина
+Ольга Орлова
+Ольга Серябкина
+Павел Воля
+Павел Кашин
+Паша Техник
+Пелагея
+Петр Елфимов
+Петр Налич
+Полина Гагарина
+Полина Гриффис
+Прохор Шаляпин
+Птаха
+Пьер Нарцисс
+Рада Рай
+Рамиль
+Рита Дакота
+Рома Жиган
+Рома Жуков
+Рома Зверь
+Роман Архипов
+Роман Рябцев
+Руслан Алехно
+Светлана Владимирская
+Светлана Лазарева
+Светлана Разина
+Светлана Светикова
+Светлана Сурганова
+Сергей Аморалов
+Сергей Галанин
+Сергей Жуков
+Сергей Захаров
+Сергей Кристовский
+Сергей Лазарев
+Сергей Лемох
+Сергей Любавин
+Сергей Мазаев
+Сергей Минаев
+Сергей Пенкин
+Сергей Приказчиков
+Сергей Рогожин
+Сергей Трофимов
+Сергей Челобанов
+Сергей Чиграков
+Сергей Шнуров
+Слава КПСС
+Слава Марлоу
+Согдиана
+Сосо Павлиашвили
+Софья Таюрская
+Стас Костюшкин
+Стас Михайлов
+Стас Пьеха
+Таня Буланова
+Татьяна Буланова
+Татьяна Иванова
+Татьяна Куртукова
+Татьяна Маркова
+Татьяна Овсиенко
+Теона Дольникова
+Тима Белорусских
+Тимати
+Тимур Родригез
+Тося Чайкина
+Трофим
+Ульяна Караулова
+Успенская Любовь
+Филипп Киркоров
+Флорида Чантурия
+Фогель
+Хабиб
+Хаски
+Хелависа
+Хлеб
+Шаман
+Шарлот
+Эдита Пьеха
+Эдуард Суровый
+Эдуард Хиль
+Элджей
+Элина Чага
+Эмиль Горовец
+Эрик Лундмоен
+Юлианна Караулова
+Юлия Волкова
+Юлия Гаврилина
+Юлия Зиверт
+Юлия Ковальчук
+Юлия Коган
+Юлия Михальчик
+Юлия Началова
+Юлия Паршута
+Юлия Савичева
+Юлия Чичерина
+Юрий Гальцев
+Юрий Лоза
+Юрий Музыченко
+Юрий Николаев
+Юрий Хой
+Юрий Шатунов
+Ярослав Дронов
+
+5sta Family
+A'Studio
+AIGEL
+AK-47
+Alai Oli
+AMATORY
+Animal ДжаZ
+Andy Panda
+Artik & Asti
+Biting Elbows
+Burito
+CENTR
+Cheese People
+Cream Soda
+Dabro
+Dead Blonde
+Filatov & Karas
+GAYAZOV$ BROTHER$
+Gorky Park
+HammAli & Navai
+Hi-Fi
+IOWA
+Jane Air
+LITTLE BIG
+LOUNA
+Lumen
+Miyagi & Andy Panda
+PIZZA
+Plazma
+Pompeya
+Pussy Riot
+RASA
+Rauf & Faik
+Reflex
+Serebro
+Shortparis
+Slaughter to Prevail
+Stigmata
+t.A.T.u.
+Tesla Boy
+TumaniYO
+The Hatters
+The Matrixx
+The Retuses
+Therr Maitz
+Uma2rman
+
+Агата Кристи
+Аквариум
+АлоэВера
+АнимациЯ
+Ария
+АукцЫон
+Аффинаж
+Балаган Лимитед
+Банд'Эрос
+Белый орёл
+Блестящие
+Браво
+Братья Гримм
+Бригада С
+Бутырка
+Весёлые ребята
+ВИА Гра
+Винтаж
+Вирус!
+Волга-Волга
+Воскресение
+Год Змеи
+Город 312
+Гости из будущего
+Градусы
+Гражданская оборона
+Грот
+Дайте танк (!)
+Демо
+Дискотека Авария
+Дюна
+Жуки
+Звери
+Иванушки International
+Инь-Ян
+Калинов Мост
+Кар-Мэн
+Квартал
+Кипелов
+Кирпичи
+КняZz
+Комиссар
+Корни
+Король и Шут
+Красная плесень
+Краски
+Крематорий
+Кровосток
+Круиз
+Кукрыниксы
+Ленинград
+Лесоповал
+Любэ
+Маврин
+Макулатура
+Мастер
+Мельница
+Мираж
+Многоточие
+Моральный кодекс
+Мумий Тролль
+Мураками
+Наив
+Непара
+Несчастный случай
+Ночные Снайперы
+Обе-Рек
+Операция Пластилин
+Отпетые мошенники
+Пасош
+Пикник
+Пилот
+План Ломоносова
+Полматери
+Порнофильмы
+Пропаганда
+Психея
+ПТВП
+Ранетки
+Рок-Острова
+Руки Вверх!
+Секрет
+Сектор Газа
+СерьГа
+Слот
+Смысловые Галлюцинации
+Сплин
+Стрелки
+Сурганова и оркестр
+Тайм-Аут
+Танцы Минус
+Тараканы!
+Технология
+Тролль гнёт ель
+Тутси
+Ундервуд
+Фабрика
+Фактор-2
+Форум
+Хор Турецкого
+Чайф
+Челси
+Черный Кофе
+Черный Обелиск
+Чиж & Co
+Электроклуб
+Элизиум
+Эпидемия
+Ю-Питер
