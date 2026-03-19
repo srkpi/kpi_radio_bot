@@ -177,8 +177,9 @@ async def get_ethers_info(
         start = ether_data["start"].strftime("%H:%M")
         end = ether_data["end"].strftime("%H:%M")
 
-        minutes = ether_data["free_time"] // 60
-        seconds = ether_data["free_time"] % 60
+        free_time = int(ether_data["free_time"])
+        minutes = free_time // 60
+        seconds = free_time % 60
         free_time_str = f"{minutes:02d}:{seconds:02d}"
 
         name = ether_data["name"]
