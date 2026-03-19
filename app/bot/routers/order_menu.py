@@ -468,7 +468,7 @@ async def on_ether_selected(
                     ):
                         recently_played = True
 
-                if order.decided_by is None:
+                elif order.decided_by is None and not order.played:
                     recent_ordered = True
 
             if order.confirmed:
