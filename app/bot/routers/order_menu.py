@@ -13,8 +13,8 @@ from aiogram.enums import ContentType
 from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
-from aiogram_dialog.widgets.text import Const, Format
+from aiogram_dialog.widgets.kbd import Button, Row, Start, Select, Column, Back, Group
+from aiogram_dialog.widgets.text import Const, Format, Jinja
 
 from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.ethers import SCHEDULE
@@ -26,6 +26,7 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.routers.player_menu import get_ethers_info, select_ether_handler
 from app.bot.services.song_downloader import add_to_download_queue, get_song_path
 from app.bot.states.alert_state import get_alert_state
 from app.bot.states.main import MainStates
@@ -861,8 +862,8 @@ async def get_grouped_ethers(
 
 
 async def get_ethers(dialog_manager: DialogManager, **kwargs):
-    day = dialog_manager.dialog_data["day"]
-    uow = dialog_manager.middleware_data["uow"]
+    day: int = dialog_manager.dialog_data["day"]
+    uow: UnitOfWork = dialog_manager.middleware_data["uow"]
     ethers = await get_grouped_ethers(day, uow, dialog_manager)
 
     if day == 0 and await get_alert_state():
@@ -871,7 +872,32 @@ async def get_ethers(dialog_manager: DialogManager, **kwargs):
             text=f"Наразі лунає тривога. Замовлення на поточний етер не приймаються, однак Ви можете замовити на інші!",
         )
 
-    return {"ethers": ethers}
+    if day == 0:
+        current_order = await uow.orders.find_one(
+            Order.played == False,
+            Order.play_start != None,
+            order=[Order.play_start.desc()],
+        )
+    else:
+        current_order = None
+
+    now = datetime.now()
+    selected_date = now.date() + timedelta(days=day)
+    selected_ether_idx = dialog_manager.dialog_data.get("selected_ether_idx")
+    if selected_ether_idx is None:
+        selected_ether_idx = 1 if now.time() > time(hour=16) else 0
+
+    ethers_info, ether_buttons = await get_ethers_info(
+        uow, current_order, selected_date, selected_ether_idx
+    )
+    if not ether_buttons:
+        dialog_manager.dialog_data.pop("selected_ether_idx", None)
+
+    return {
+        "ethers": ethers,
+        "ethers_info": ethers_info,
+        "ether_buttons": ether_buttons,
+    }
 
 
 order_menu = Dialog(
@@ -913,7 +939,23 @@ order_menu = Dialog(
         getter=get_data,
     ),
     Window(
-        Const("Тепер вибери час"),
+        Const("{{ ethers_info|safe }}\n\nТепер вибери час"),
+        Row(
+            *[
+                Button(
+                    Jinja("{{ ether_buttons[0]['label'] if ether_buttons else '' }}"),
+                    id="ether_0",
+                    when=lambda data, widget, manager: data.get("ether_buttons"),
+                    on_click=select_ether_handler,
+                ),
+                Button(
+                    Jinja("{{ ether_buttons[1]['label'] if ether_buttons else '' }}"),
+                    id="ether_1",
+                    when=lambda data, widget, manager: data.get("ether_buttons"),
+                    on_click=select_ether_handler,
+                ),
+            ]
+        ),
         Group(
             Select(
                 text=Format("{item[1][0][name]}"),

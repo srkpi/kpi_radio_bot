@@ -1,5 +1,5 @@
 import html
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Start, Button, Group, Row
@@ -63,10 +63,140 @@ async def select_ether_handler(
     await dialog_manager.update(dialog_manager.dialog_data)
 
 
+async def get_ethers_info(
+    uow: UnitOfWork,
+    current_order: Order | None,
+    selected_date: date,
+    selected_ether_idx: int,
+) -> tuple[str, list[dict[str, str]]]:
+    now = datetime.now()
+    ethers = await uow.ethers.find(
+        Ether.ether_date == selected_date,
+        Ether.cancelled == False,
+        options=[selectinload(Ether.orders)],
+        order=[Ether.start_time.asc()],
+    )
+
+    ether_buttons = None
+    if (
+        len(ethers) == 2
+        and ethers[0].name == "Ранково-денний етер"
+        and ethers[1].name == "Вечірній етер"
+    ):
+        ethers_to_show = [ethers[selected_ether_idx]]
+        ether_buttons = []
+        for i in range(2):
+            label = f"[ {i+1} ]" if i == selected_ether_idx else f"{i+1}"
+            ether_buttons.append({"label": label, "id": f"ether_{i}"})
+    else:
+        ethers_to_show = ethers
+
+    ethers_info = ""
+    ethers_data = []
+
+    for ether in ethers_to_show:
+        name_to_show = ether.name
+        is_admin_order = False
+
+        orders_string = ""
+        orders = [
+            order for order in ether.orders if order.expected_play_time is not None
+        ]
+        orders.sort(key=lambda x: x.expected_play_time)
+        for order in orders:
+            if order.confirmed and (not order.played or order.play_start):
+                if settings.ADMINS and order.ordered_by in settings.ADMINS:
+                    is_admin_order = True
+
+                safe_title = html.escape(order.title)
+                if order.video_id:
+                    title_link = f'<a href="https://youtube.com/watch?v={order.video_id}">{safe_title}</a>'
+                else:
+                    title_link = safe_title
+
+                icon = ">" if current_order and order.id == current_order.id else "•"
+                orders_string += f"{icon} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
+
+        calculate_duration_orders = [
+            order
+            for order in ether.orders
+            if not order.played and (order.confirmed or order.confirmed is None)
+        ]
+
+        start_dt = datetime.combine(ether.ether_date, ether.start_time)
+        end_dt = datetime.combine(ether.ether_date, ether.end_time)
+
+        if now > start_dt and now < end_dt:
+            on_moderation_time = 0
+            to_play_time = 0
+
+            for order in calculate_duration_orders:
+                if order.confirmed is None:
+                    on_moderation_time += order.duration
+                elif (
+                    current_order and order.id == current_order.id and order.play_start
+                ):
+                    to_play_time += (now - order.play_start).total_seconds()
+                else:
+                    to_play_time += order.duration
+
+            time_taken = on_moderation_time + to_play_time
+            free_time = max((end_dt - now).total_seconds() - time_taken, 0)
+        else:
+            time_taken = sum(order.duration for order in calculate_duration_orders)
+            free_time = max((end_dt - start_dt).total_seconds() - time_taken, 0)
+
+        if not orders_string:
+            continue
+
+        if not is_admin_order:
+            if name_to_show == "Подкасти (денні)":
+                name_to_show = "Третя перерва"
+            elif name_to_show == "Подкасти (вечірні)":
+                name_to_show = "Вечірній етер"
+
+        if len(ethers_data):
+            last_ether = ethers_data[-1]
+            if last_ether["name"] == name_to_show:
+                last_ether["end"] = ether.end_time
+                last_ether["orders_str"] += orders_string
+                last_ether["free_time"] += free_time
+                continue
+
+        ethers_data.append(
+            {
+                "name": name_to_show,
+                "start": ether.start_time,
+                "end": ether.end_time,
+                "orders_str": orders_string,
+                "free_time": free_time,
+            }
+        )
+
+    for ether_data in ethers_data:
+        start = ether_data["start"].strftime("%H:%M")
+        end = ether_data["end"].strftime("%H:%M")
+
+        minutes = ether_data["free_time"] // 60
+        seconds = ether_data["free_time"] % 60
+        free_time_str = f"{minutes:02d}:{seconds:02d}"
+
+        name = ether_data["name"]
+        orders = ether_data["orders_str"]
+
+        ethers_info += f"\n{name} ({start}-{end}, ⌛ {free_time_str}):\n" f"{orders}"
+
+    if not ethers_info:
+        ethers_info = "\nЧерга порожня!"
+
+    return ethers_info, ether_buttons
+
+
 async def get_data(dialog_manager: DialogManager, **kwargs):
     uow: UnitOfWork = dialog_manager.middleware_data["uow"]
 
-    today = datetime.now().date()
+    now = datetime.now()
+    today = now.date()
     selected_date = dialog_manager.dialog_data.get("selected_date")
     if selected_date:
         selected_date = datetime.fromisoformat(selected_date).date()
@@ -95,83 +225,12 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
             order=[Order.expected_play_time.asc()],
         )
 
-    ethers = await uow.ethers.find(
-        Ether.ether_date == selected_date,
-        Ether.cancelled == False,
-        options=[selectinload(Ether.orders)],
-        order=[Ether.start_time.asc()],
-    )
-
-    ether_buttons = None
     selected_ether_idx = dialog_manager.dialog_data.get("selected_ether_idx", 0)
-    if (
-        len(ethers) == 2
-        and ethers[0].name == "Ранково-денний етер"
-        and ethers[1].name == "Вечірній етер"
-    ):
-        ethers_to_show = [ethers[selected_ether_idx]]
-        ether_buttons = []
-        for i in range(2):
-            label = f"[ {i+1} ]" if i == selected_ether_idx else f"{i+1}"
-            ether_buttons.append({"label": label, "id": f"ether_{i}"})
-    else:
-        ethers_to_show = ethers
+    ethers_info, ether_buttons = await get_ethers_info(
+        uow, current_order, selected_date, selected_ether_idx
+    )
+    if not ether_buttons:
         dialog_manager.dialog_data.pop("selected_ether_idx", None)
-
-    ethers_info = ""
-    ethers_data = []
-
-    for ether in ethers_to_show:
-        name_to_show = ether.name
-        is_admin_order = False
-
-        orders_string = ""
-        orders = [
-            order for order in ether.orders if order.expected_play_time is not None
-        ]
-        orders.sort(key=lambda x: x.expected_play_time)
-        for order in orders:
-            if order.confirmed and (not order.played or order.play_start):
-                if settings.ADMINS and order.ordered_by in settings.ADMINS:
-                    is_admin_order = True
-
-                safe_title = html.escape(order.title)
-                if order.video_id:
-                    title_link = f'<a href="https://youtube.com/watch?v={order.video_id}">{safe_title}</a>'
-                else:
-                    title_link = safe_title
-                orders_string += f"{'>' if current_order and order.id == current_order.id else '•'} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
-
-        if not orders_string:
-            continue
-
-        if not is_admin_order:
-            if name_to_show == "Подкасти (денні)":
-                name_to_show = "Третя перерва"
-            elif name_to_show == "Подкасти (вечірні)":
-                name_to_show = "Вечірній етер"
-
-        if len(ethers_data):
-            last_ether = ethers_data[-1]
-            if last_ether["name"] == name_to_show:
-                last_ether["end"] = ether.end_time
-                last_ether["orders_str"] += orders_string
-                continue
-
-        ethers_data.append(
-            {
-                "name": name_to_show,
-                "start": ether.start_time,
-                "end": ether.end_time,
-                "orders_str": orders_string,
-            }
-        )
-
-    for ether_data in ethers_data:
-        ethers_info += f"\n{ether_data['name']} ({ether_data['start'].strftime('%H:%M')}-{ether_data['end'].strftime('%H:%M')}):\n{ether_data['orders_str']}"
-
-    if not ethers_info:
-        ethers_info = "\nЧерга порожня!"
 
     if selected_date != today:
         formatted_date = selected_date.strftime("%d.%m")
