@@ -5,6 +5,7 @@ from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Start, Button, Group, Row
 from aiogram_dialog.widgets.text import Jinja, Const
 
+from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
 from app.settings import settings
 from app.bot.models import Order
 from app.bot.models.ether import Ether
@@ -128,6 +129,9 @@ async def get_ethers_info(
 
             start_dt = datetime.combine(ether.ether_date, ether.start_time)
             end_dt = datetime.combine(ether.ether_date, ether.end_time)
+            play_delay = AVERAGE_SONG_SWITCH_DELAY * (
+                len(calculate_duration_orders) - 1
+            )
 
             if now > start_dt and now < end_dt:
                 on_moderation_time = 0
@@ -146,10 +150,14 @@ async def get_ethers_info(
                         to_play_time += order.duration
 
                 time_taken = on_moderation_time + to_play_time
-                free_time = max((end_dt - now).total_seconds() - time_taken, 0)
+                free_time = max(
+                    (end_dt - now).total_seconds() - time_taken - play_delay, 0
+                )
             else:
                 time_taken = sum(order.duration for order in calculate_duration_orders)
-                free_time = max((end_dt - start_dt).total_seconds() - time_taken, 0)
+                free_time = max(
+                    (end_dt - start_dt).total_seconds() - time_taken - play_delay, 0
+                )
 
         if not orders_string:
             continue
