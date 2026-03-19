@@ -11,7 +11,7 @@ from ytmusicapi import YTMusic
 from aiogram import Bot
 from aiogram.enums import ContentType
 from aiogram.types import Message, CallbackQuery
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start, Select, Column, Back, Group
 from aiogram_dialog.widgets.text import Const, Format
@@ -883,7 +883,12 @@ order_menu = Dialog(
         ),
         MessageInput(audio_input, content_types=[ContentType.AUDIO]),
         MessageInput(text_input, content_types=[ContentType.TEXT]),
-        Start(text=Const("Відміна"), id="__main__", state=MainStates.main),
+        Start(
+            text=Const("Відміна"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         state=OrderStates.input,
         getter=ban_check,
     ),
@@ -898,7 +903,12 @@ order_menu = Dialog(
                 on_click=on_day_selected,
             )
         ),
-        Start(text=Const("Відміна"), id="__main__", state=MainStates.main),
+        Start(
+            text=Const("Відміна"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         state=OrderStates.day,
         getter=get_data,
     ),

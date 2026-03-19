@@ -1,6 +1,6 @@
 from aiogram import Bot
 from aiogram.types import Message
-from aiogram_dialog import Dialog, DialogManager, Window
+from aiogram_dialog import Dialog, DialogManager, StartMode, Window
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Start
 from aiogram_dialog.widgets.text import Const
@@ -45,7 +45,12 @@ feedback_menu = Dialog(
             '❌ Якщо передумав, натисни "Назад".'
         ),
         MessageInput(handle_feedback_input),
-        Start(text=Const("Назад"), id="__main__", state=MainStates.main),
+        Start(
+            text=Const("Назад"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         state=FeedbackStates.feedback,
         parse_mode="Markdown",
         getter=ban_check,
@@ -55,7 +60,12 @@ feedback_menu = Dialog(
             'Ваше повідомленя надіслано! За потреби надішліть ще одне, або натисність "Назад".'
         ),
         MessageInput(handle_feedback_input),
-        Start(text=Const("Назад"), id="__main__", state=MainStates.main),
+        Start(
+            text=Const("Назад"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         state=FeedbackStates.message_sent,
         getter=ban_check,
     ),

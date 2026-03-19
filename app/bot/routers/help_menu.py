@@ -3,7 +3,7 @@ from typing import Any
 
 from aiogram import F
 from aiogram.types import CallbackQuery
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Select, Column, Start
 from aiogram_dialog.widgets.text import Const, Case, Format
 
@@ -110,7 +110,12 @@ help_menu = Dialog(
                 items="help",
                 on_click=on_help_menu_selected,
             ),
-            Start(text=Const("Назад"), id="__main__", state=MainStates.main),
+            Start(
+                text=Const("Назад"),
+                id="__main__",
+                state=MainStates.main,
+                mode=StartMode.RESET_STACK,
+            ),
         ),
         state=HelpStates.select,
         getter=get_data,

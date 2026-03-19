@@ -1,7 +1,7 @@
 import html
 from datetime import datetime, timedelta
 
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Start, Button, Group, Row
 from aiogram_dialog.widgets.text import Jinja, Const
 
@@ -251,7 +251,12 @@ player_menu = Dialog(
             when=lambda data, widget, manager: data["selected_date"] != data["today"],
             on_click=today_handler,
         ),
-        Start(Const("Назад"), id="__main__", state=MainStates.main),
+        Start(
+            Const("Назад"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         getter=get_data,
         state=PlayerStates.now_playing,
         parse_mode="HTML",

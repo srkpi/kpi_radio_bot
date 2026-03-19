@@ -1,4 +1,4 @@
-from aiogram_dialog import Dialog, Window
+from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.kbd import Start
 from aiogram_dialog.widgets.text import Const
 
@@ -25,7 +25,12 @@ text = Const(
 schedule_menu = Dialog(
     Window(
         text,
-        Start(text=Const("Назад"), id="__main__", state=MainStates.main),
+        Start(
+            text=Const("Назад"),
+            id="__main__",
+            state=MainStates.main,
+            mode=StartMode.RESET_STACK,
+        ),
         state=ScheduleStates.schedule,
         parse_mode="Markdown",
     )
