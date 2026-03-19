@@ -118,7 +118,10 @@ async def get_ethers_info(
                 icon = ">" if current_order and order.id == current_order.id else "•"
                 orders_string += f"{icon} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
 
-        if ether.ether_date < now.date() or ether.end_time < now.time():
+        today = now.date()
+        if ether.ether_date < today or (
+            ether.ether_date == today and ether.end_time < now.time()
+        ):
             free_time = 0
         else:
             calculate_duration_orders = [
@@ -190,9 +193,14 @@ async def get_ethers_info(
 
         free_time = int(ether_data["free_time"])
         if free_time > 0:
-            minutes = free_time // 60
+            hours = free_time // 3600
+            minutes = (free_time % 3600) // 60
             seconds = free_time % 60
-            free_time_label = f", ⌛ {minutes:02d}:{seconds:02d}"
+
+            if hours > 0:
+                free_time_label = f", ⌛ {hours:02d}:{minutes:02d}:{seconds:02d}"
+            else:
+                free_time_label = f", ⌛ {minutes:02d}:{seconds:02d}"
         else:
             free_time_label = ""
 
