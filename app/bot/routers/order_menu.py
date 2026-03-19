@@ -969,5 +969,6 @@ order_menu = Dialog(
         Back(text=Const("Назад")),
         state=OrderStates.ether,
         getter=get_ethers,
+        disable_web_page_preview=True,
     ),
 )

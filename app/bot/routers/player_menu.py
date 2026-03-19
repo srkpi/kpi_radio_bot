@@ -129,9 +129,7 @@ async def get_ethers_info(
 
             start_dt = datetime.combine(ether.ether_date, ether.start_time)
             end_dt = datetime.combine(ether.ether_date, ether.end_time)
-            play_delay = AVERAGE_SONG_SWITCH_DELAY * (
-                len(calculate_duration_orders) - 1
-            )
+            play_delay = AVERAGE_SONG_SWITCH_DELAY * len(calculate_duration_orders)
 
             if now > start_dt and now < end_dt:
                 on_moderation_time = 0
