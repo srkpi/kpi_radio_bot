@@ -101,6 +101,10 @@ async def confirm_order(
                         f"🚫 Твоє замовлення не зможе програти через тривогу: {order.title}",
                     )
                     return
+            elif order_ether.ether_date < current_datetime.date():
+                text = callback.message.html_text + "\nЕтер вже закінчився"
+                await change_callback_message_text(callback, text)
+                return
 
             text = (
                 re.sub(
