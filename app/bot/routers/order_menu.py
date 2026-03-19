@@ -887,8 +887,9 @@ async def get_ethers(dialog_manager: DialogManager, **kwargs):
     if selected_ether_idx is None:
         selected_ether_idx = 1 if now.time() > time(hour=16) else 0
 
+    end_after = now.time() if day == 0 else None
     ethers_info, ether_buttons = await get_ethers_info(
-        uow, current_order, selected_date, selected_ether_idx
+        uow, current_order, selected_date, selected_ether_idx, end_after
     )
     if not ether_buttons:
         dialog_manager.dialog_data.pop("selected_ether_idx", None)

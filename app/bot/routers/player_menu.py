@@ -1,5 +1,5 @@
 import html
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from aiogram_dialog import Dialog, StartMode, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Start, Button, Group, Row
@@ -69,11 +69,18 @@ async def get_ethers_info(
     current_order: Order | None,
     selected_date: date,
     selected_ether_idx: int,
+    end_after: time | None = None,
 ) -> tuple[str, list[dict[str, str]] | None]:
-    now = datetime.now()
-    ethers = await uow.ethers.find(
+    filters = [
         Ether.ether_date == selected_date,
         Ether.cancelled == False,
+    ]
+    if end_after:
+        filters.append(Ether.end_time > end_after)
+
+    now = datetime.now()
+    ethers = await uow.ethers.find(
+        *filters,
         options=[selectinload(Ether.orders)],
         order=[Ether.start_time.asc()],
     )
