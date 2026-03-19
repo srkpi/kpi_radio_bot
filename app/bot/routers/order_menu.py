@@ -939,7 +939,7 @@ order_menu = Dialog(
         getter=get_data,
     ),
     Window(
-        Const("{{ ethers_info|safe }}\n\nТепер вибери час"),
+        Jinja("{{ ethers_info|safe }}\n\nТепер вибери час"),
         Row(
             *[
                 Button(

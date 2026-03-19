@@ -68,7 +68,7 @@ async def get_ethers_info(
     current_order: Order | None,
     selected_date: date,
     selected_ether_idx: int,
-) -> tuple[str, list[dict[str, str]]]:
+) -> tuple[str, list[dict[str, str]] | None]:
     now = datetime.now()
     ethers = await uow.ethers.find(
         Ether.ether_date == selected_date,
@@ -117,34 +117,39 @@ async def get_ethers_info(
                 icon = ">" if current_order and order.id == current_order.id else "•"
                 orders_string += f"{icon} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
 
-        calculate_duration_orders = [
-            order
-            for order in ether.orders
-            if not order.played and (order.confirmed or order.confirmed is None)
-        ]
-
-        start_dt = datetime.combine(ether.ether_date, ether.start_time)
-        end_dt = datetime.combine(ether.ether_date, ether.end_time)
-
-        if now > start_dt and now < end_dt:
-            on_moderation_time = 0
-            to_play_time = 0
-
-            for order in calculate_duration_orders:
-                if order.confirmed is None:
-                    on_moderation_time += order.duration
-                elif (
-                    current_order and order.id == current_order.id and order.play_start
-                ):
-                    to_play_time += (now - order.play_start).total_seconds()
-                else:
-                    to_play_time += order.duration
-
-            time_taken = on_moderation_time + to_play_time
-            free_time = max((end_dt - now).total_seconds() - time_taken, 0)
+        if ether.ether_date < now.date() or ether.end_time < now.time():
+            free_time = 0
         else:
-            time_taken = sum(order.duration for order in calculate_duration_orders)
-            free_time = max((end_dt - start_dt).total_seconds() - time_taken, 0)
+            calculate_duration_orders = [
+                order
+                for order in ether.orders
+                if not order.played and (order.confirmed or order.confirmed is None)
+            ]
+
+            start_dt = datetime.combine(ether.ether_date, ether.start_time)
+            end_dt = datetime.combine(ether.ether_date, ether.end_time)
+
+            if now > start_dt and now < end_dt:
+                on_moderation_time = 0
+                to_play_time = 0
+
+                for order in calculate_duration_orders:
+                    if order.confirmed is None:
+                        on_moderation_time += order.duration
+                    elif (
+                        current_order
+                        and order.id == current_order.id
+                        and order.play_start
+                    ):
+                        to_play_time += (now - order.play_start).total_seconds()
+                    else:
+                        to_play_time += order.duration
+
+                time_taken = on_moderation_time + to_play_time
+                free_time = max((end_dt - now).total_seconds() - time_taken, 0)
+            else:
+                time_taken = sum(order.duration for order in calculate_duration_orders)
+                free_time = max((end_dt - start_dt).total_seconds() - time_taken, 0)
 
         if not orders_string:
             continue
@@ -178,14 +183,17 @@ async def get_ethers_info(
         end = ether_data["end"].strftime("%H:%M")
 
         free_time = int(ether_data["free_time"])
-        minutes = free_time // 60
-        seconds = free_time % 60
-        free_time_str = f"{minutes:02d}:{seconds:02d}"
+        if free_time > 0:
+            minutes = free_time // 60
+            seconds = free_time % 60
+            free_time_label = f", ⌛ {minutes:02d}:{seconds:02d}"
+        else:
+            free_time_label = ""
 
         name = ether_data["name"]
         orders = ether_data["orders_str"]
 
-        ethers_info += f"\n{name} ({start}-{end}, ⌛ {free_time_str}):\n" f"{orders}"
+        ethers_info += f"\n{name} ({start}-{end}{free_time_label}):\n" f"{orders}"
 
     if not ethers_info:
         ethers_info = "\nЧерга порожня!"
