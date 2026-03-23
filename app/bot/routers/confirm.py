@@ -137,6 +137,8 @@ async def confirm_order(
                     Order.ether_id == order.ether_id,
                     Order.played == False,
                     Order.confirmed == True,
+                    Order.expected_play_time != None,
+                    Order.id != order.id,
                 )
 
                 if current_playing or len(ether_not_played_orders):
@@ -207,6 +209,8 @@ async def confirm_order(
                     Order.ether_id == order.ether_id,
                     Order.played == False,
                     Order.confirmed == True,
+                    Order.expected_play_time != None,
+                    Order.id != order.id,
                 )
 
                 total_duration = sum(
