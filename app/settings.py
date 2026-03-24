@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     SPOTIPY_CLIENT_ID: SecretStr
     SPOTIPY_CLIENT_SECRET: SecretStr
 
+    COOKIES_PATH: Optional[str] = None
+
     @property
     def WEBHOOK_URL(self) -> str:
         return f"{self.BASE_URL}webhook"

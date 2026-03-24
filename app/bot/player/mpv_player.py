@@ -14,6 +14,11 @@ from app.bot.states.alert_state import get_alert_state
 from app.database import sessionmaker
 from app.settings import settings
 
+ytdl_opts = "extractor-args=youtube:player_client=android"
+
+if settings.COOKIES_PATH:
+    ytdl_opts += f",cookies={settings.COOKIES_PATH}"
+
 
 class MPVPlayer(mpv.MPV):
     def __init__(
@@ -117,7 +122,7 @@ physical_player = MPVPlayer(
     video=False,
     cache=False,
     audio_channels="stereo",
-    ytdl_raw_options="extractor-args=youtube:player_client=android",
+    ytdl_raw_options=ytdl_opts,
 )
 
 streaming_player = MPVPlayer(
@@ -128,7 +133,7 @@ streaming_player = MPVPlayer(
     video=False,
     cache=False,
     audio_channels="stereo",
-    ytdl_raw_options="extractor-args=youtube:player_client=android",
+    ytdl_raw_options=ytdl_opts,
 )
 
 player = DoubleMPVPlayer(physical_player, streaming_player)
