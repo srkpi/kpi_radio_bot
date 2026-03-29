@@ -17,7 +17,7 @@ from app.settings import settings
 ytdl_opts = "" # "extractor-args=youtube:player_client=android"
 
 if settings.COOKIES_PATH:
-    ytdl_opts += f",cookies={settings.COOKIES_PATH}"
+    ytdl_opts += f"cookies={settings.COOKIES_PATH}"
 
 
 class MPVPlayer(mpv.MPV):
