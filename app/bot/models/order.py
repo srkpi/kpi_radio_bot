@@ -16,6 +16,7 @@ class Order(Base):
     title: Mapped[Optional[str]]
 
     video_id: Mapped[Optional[str]] = mapped_column(index=True)
+    file_id: Mapped[Optional[str]]
     duration: Mapped[int]
 
     confirmed: Mapped[bool] = mapped_column(default=False)

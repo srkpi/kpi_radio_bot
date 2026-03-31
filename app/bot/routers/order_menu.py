@@ -24,10 +24,15 @@ from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
 from app.bot.models.day_state import DayState
-from app.bot.player.mpv_player import player
+from app.bot.player.mpv_player import player, _get_order_play_source
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.player_menu import get_ethers_info, select_ether_handler
-from app.bot.services.song_downloader import add_to_download_queue, get_song_path
+from app.bot.services.song_downloader import (
+    add_to_download_queue,
+    add_telegram_to_download_queue,
+    download_telegram_file,
+    get_song_path,
+)
 from app.bot.states.alert_state import get_alert_state
 from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
@@ -110,8 +115,41 @@ def remove_brackets(s: str) -> str:
 
 async def audio_input(
     message: Message, message_input: MessageInput, manager: DialogManager
-):
-    await message.answer("Аудіофайли не підтримуються")
+) -> None:
+    user_id = message.from_user.id
+
+    if not settings.ADMINS or user_id not in settings.ADMINS:
+        await message.answer("Аудіофайли не підтримуються")
+        return
+
+    if message.audio:
+        file_id = message.audio.file_id
+        duration = message.audio.duration or 0
+        title = (
+            message.audio.title
+            or message.audio.file_name
+            or "Аудіофайл"
+        )
+        title = remove_brackets(title)
+    elif message.voice:
+        file_id = message.voice.file_id
+        duration = message.voice.duration or 0
+        title = "Голосове повідомлення"
+    else:
+        await message.answer("Аудіофайли не підтримуються")
+        return
+
+    song_info = {
+        "title": title,
+        "video_id": None,
+        "file_id": file_id,
+        "spotify_url": None,
+        "duration": duration,
+        "language": None,
+    }
+
+    manager.dialog_data["audio"] = song_info
+    await manager.switch_to(OrderStates.day)
 
 
 async def search_song_by_url(
@@ -256,6 +294,7 @@ async def search_song_by_url(
     return {
         "title": title_formatted,
         "video_id": video_id,
+        "file_id": None,
         "spotify_url": url if is_spotify else None,
         "duration": duration,
         "language": language,
@@ -273,8 +312,6 @@ async def text_input(
     manager.dialog_data["audio"] = song_info
 
     await manager.next()
-
-
 async def on_day_selected(
     callback: CallbackQuery,
     widget: Any,
@@ -307,6 +344,11 @@ async def on_ether_selected(
 
     user_id = callback.from_user.id
     ether_group = selected_ether_group[1]
+
+    audio_data = manager.dialog_data.get("audio") or manager.start_data.get("audio", {})
+    video_id = audio_data.get("video_id")
+    file_id = audio_data.get("file_id")
+    is_file_order = bool(file_id) and video_id is None
 
     not_confimred_orders_duration = 0
 
@@ -387,7 +429,7 @@ async def on_ether_selected(
             if play_time + timedelta(seconds=duration) > datetime.combine(
                 ether.ether_date, ether.end_time
             ):
-                continue  # Пісня не влазе в етер
+                continue  # Song doesn't fit
 
             play_time_str = play_time.strftime("%H:%M")
         else:
@@ -421,10 +463,7 @@ async def on_ether_selected(
                 if play_time + timedelta(seconds=duration) > datetime.combine(
                     ether.ether_date, ether.end_time
                 ):
-                    continue  # Пісня не влазе в етер
-
-        video_id = manager.dialog_data["audio"].get("video_id")
-        same_orders = await uow.orders.find(Order.video_id == video_id)
+                    continue  # Song doesn't fit
 
         today = datetime.today().date()
         start_dt = datetime.combine(today, ether.start_time)
@@ -434,133 +473,141 @@ async def on_ether_selected(
             hours=2
         )
 
-        recent_ordered = False
-        will_play_soon = False
-        recently_played = False
-
-        rating = 0
-        same_ether_orders: list[Order] = []
-        for order in same_orders:
-            if order.ether_id == ether.id:
-                if order.expected_play_time:
-                    same_ether_orders.append(order)
-                    now = datetime.now()
-
-                    if (
-                        order.played == False
-                        and (
-                            now.date() == ether.ether_date
-                            and now < order.expected_play_time
-                            and now + timedelta(minutes=30) > order.expected_play_time
-                        )
-                        or play_time - timedelta(minutes=30) < order.expected_play_time
-                    ):
-                        will_play_soon = True
-
-                    if (
-                        order.play_start
-                        and order.played == True
-                        and now
-                        < order.play_start
-                        + timedelta(
-                            seconds=order.duration,
-                            minutes=30,
-                        )
-                    ):
-                        recently_played = True
-
-                elif order.decided_by is None and not order.played:
-                    recent_ordered = True
-
-            if order.confirmed:
-                rating += 1
-            elif order.decision_timestamp and order.decided_by != 0:
-                rating -= 1
-
-        confirmation_status = None
-
         order_title = html.escape(manager.dialog_data["audio"]["title"])
-        auto_moderation_choice = await uow.auto_moderation.find_one(
-            AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
-        )
 
-        moderation_flag = ""
+        if is_file_order:
+            confirmation_status = True
+            decision_label = "✅ Файл адміна"
+            moderation_flag = "📁 "
+            cancel_text = ""
+        else:
+            same_orders = await uow.orders.find(Order.video_id == video_id)
 
-        if auto_moderation_choice and auto_moderation_choice.confirm is None:
-            moderation_flag = "🟨 "
-        elif auto_moderation_choice and auto_moderation_choice.confirm == False:
-            moderation_flag = "🟥 "
-            cancel_reason = "у блеклісті"
-            if not settings.ADMINS or user_id not in settings.ADMINS:
-                confirmation_status = False
-                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
-                decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
-        elif rating < -2:
-            moderation_flag = "🔴 "
-            cancel_reason = "часто відхиляють"
+            recent_ordered = False
+            will_play_soon = False
+            recently_played = False
 
-            if not settings.ADMINS or user_id not in settings.ADMINS:
-                confirmation_status = False
-                cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
-                decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
-        elif rating > 2 or (auto_moderation_choice and auto_moderation_choice.confirm):
-            moderation_flag = (
-                "🟩 "
-                if auto_moderation_choice and auto_moderation_choice.confirm == True
-                else "🟢 "
+            rating = 0
+            same_ether_orders: list[Order] = []
+            for order in same_orders:
+                if order.ether_id == ether.id:
+                    if order.expected_play_time:
+                        same_ether_orders.append(order)
+                        now = datetime.now()
+
+                        if (
+                            order.played == False
+                            and (
+                                now.date() == ether.ether_date
+                                and now < order.expected_play_time
+                                and now + timedelta(minutes=30) > order.expected_play_time
+                            )
+                            or play_time - timedelta(minutes=30) < order.expected_play_time
+                        ):
+                            will_play_soon = True
+
+                        if (
+                            order.play_start
+                            and order.played == True
+                            and now
+                            < order.play_start
+                            + timedelta(
+                                seconds=order.duration,
+                                minutes=30,
+                            )
+                        ):
+                            recently_played = True
+
+                    elif order.decided_by is None and not order.played:
+                        recent_ordered = True
+
+                if order.confirmed:
+                    rating += 1
+                elif order.decision_timestamp and order.decided_by != 0:
+                    rating -= 1
+
+            confirmation_status = None
+            auto_moderation_choice = await uow.auto_moderation.find_one(
+                AutoModeration.video_id == video_id, AutoModeration.is_deleted == False
             )
 
-            if user_orders <= 2:
-                confirmation_status = True
-            elif is_long_ether and user_orders <= 5:
-                confirmation_status = True
+            moderation_flag = ""
 
-        if same_ether_orders and not is_long_ether:
-            same_ether_orders.sort(key=lambda x: x.expected_play_time, reverse=True)
+            if auto_moderation_choice and auto_moderation_choice.confirm is None:
+                moderation_flag = "🟨 "
+            elif auto_moderation_choice and auto_moderation_choice.confirm == False:
+                moderation_flag = "🟥 "
+                cancel_reason = "у блеклісті"
+                if not settings.ADMINS or user_id not in settings.ADMINS:
+                    confirmation_status = False
+                    cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
+                    decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
+            elif rating < -2:
+                moderation_flag = "🔴 "
+                cancel_reason = "часто відхиляють"
 
-            cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже була замовлена. "
-            scheduled_order = same_ether_orders[0]
-
-            if scheduled_order.play_start:
-                alredy_play_start_str = scheduled_order.play_start.strftime("%H:%M")
-
-                if scheduled_order.played:
-                    cancel_text += f"Вже програла о {alredy_play_start_str}"
-                else:
-                    cancel_text += f"Грає з {alredy_play_start_str}"
-            else:
-                scheduled_play_time_str = scheduled_order.expected_play_time.strftime(
-                    "%H:%M"
+                if not settings.ADMINS or user_id not in settings.ADMINS:
+                    confirmation_status = False
+                    cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
+                    decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
+            elif rating > 2 or (auto_moderation_choice and auto_moderation_choice.confirm):
+                moderation_flag = (
+                    "🟩 "
+                    if auto_moderation_choice and auto_moderation_choice.confirm == True
+                    else "🟢 "
                 )
-                cancel_text += f"Почне грати о {scheduled_play_time_str}"
 
-            decision_label = "🚫 Відхлилено автоматично (вже замовлено, НЕ вечірній етер, НЕ вихідний)"
-            confirmation_status = False
+                if user_orders <= 2:
+                    confirmation_status = True
+                elif is_long_ether and user_orders <= 5:
+                    confirmation_status = True
 
-        elif recent_ordered:
-            cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже замовлена та чекає модерації."
-            decision_label = (
-                "🚫 Відхлилено автоматично (вже замовлено, чекає апруву на цей етер)"
-            )
-            confirmation_status = False
+            if same_ether_orders and not is_long_ether:
+                same_ether_orders.sort(key=lambda x: x.expected_play_time, reverse=True)
 
-        elif will_play_soon:
-            cancel_text = (
-                "🚫 Замовлення автоматично відхилено, має програти на цьому етері."
-            )
-            decision_label = (
-                "🚫 Відхлилено автоматично (вже замовлено, має програти на цьому етері)"
-            )
-            confirmation_status = False
+                cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже була замовлена. "
+                scheduled_order = same_ether_orders[0]
 
-        elif recently_played:
-            cancel_text = (
-                "🚫 Замовлення автоматично відхилено, ця пісня нещодавно програла."
-            )
-            decision_label = (
-                "🚫 Відхлилено автоматично (вже замовлено, нещодавно програла)"
-            )
-            confirmation_status = False
+                if scheduled_order.play_start:
+                    alredy_play_start_str = scheduled_order.play_start.strftime("%H:%M")
+
+                    if scheduled_order.played:
+                        cancel_text += f"Вже програла о {alredy_play_start_str}"
+                    else:
+                        cancel_text += f"Грає з {alredy_play_start_str}"
+                else:
+                    scheduled_play_time_str = scheduled_order.expected_play_time.strftime(
+                        "%H:%M"
+                    )
+                    cancel_text += f"Почне грати о {scheduled_play_time_str}"
+
+                decision_label = "🚫 Відхлилено автоматично (вже замовлено, НЕ вечірній етер, НЕ вихідний)"
+                confirmation_status = False
+
+            elif recent_ordered:
+                cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже замовлена та чекає модерації."
+                decision_label = (
+                    "🚫 Відхлилено автоматично (вже замовлено, чекає апруву на цей етер)"
+                )
+                confirmation_status = False
+
+            elif will_play_soon:
+                cancel_text = (
+                    "🚫 Замовлення автоматично відхилено, має програти на цьому етері."
+                )
+                decision_label = (
+                    "🚫 Відхлилено автоматично (вже замовлено, має програти на цьому етері)"
+                )
+                confirmation_status = False
+
+            elif recently_played:
+                cancel_text = (
+                    "🚫 Замовлення автоматично відхилено, ця пісня нещодавно програла."
+                )
+                decision_label = (
+                    "🚫 Відхлилено автоматично (вже замовлено, нещодавно програла)"
+                )
+                confirmation_status = False
 
         play_now = False
         if confirmation_status is None:
@@ -570,7 +617,8 @@ async def on_ether_selected(
             await callback.message.answer(cancel_text)
         else:
             user_approved_orders += 1
-            decision_label = "✅ Прийнято автоматично"
+            if not is_file_order:
+                decision_label = "✅ Прийнято автоматично"
 
             play_time -= timedelta(seconds=not_confimred_orders_duration)
             play_time_str = play_time.strftime("%H:%M")
@@ -630,6 +678,7 @@ async def on_ether_selected(
             Order(
                 title=manager.dialog_data["audio"]["title"],
                 video_id=video_id,
+                file_id=file_id,
                 duration=duration,
                 ether=ether,
                 ordered_by=user_id,
@@ -644,16 +693,7 @@ async def on_ether_selected(
 
         await uow.flush()
 
-        language = manager.dialog_data["audio"]["language"]
-        if language:
-            language_prefix = get_language_flag(language) + " "
-        else:
-            language_prefix = ""
-
         bot: Bot = manager.middleware_data["bot"]
-
-        spotify_url = manager.dialog_data["audio"].get("spotify_url")
-        spotify_link = f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ""
 
         if duration and duration > 0:
             minutes = duration // 60
@@ -662,17 +702,36 @@ async def on_ether_selected(
         else:
             duration_label = ""
 
-        youtube_url = f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
-        youtube_music_link = (
-            f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
-        )
+        if is_file_order:
+            # File orders: show a simple header without YouTube links
+            header_line = f"📁 {html.escape(manager.dialog_data['audio']['title'])}"
+        else:
+            language = manager.dialog_data["audio"]["language"]
+            language_prefix = get_language_flag(language) + " " if language else ""
+
+            spotify_url = manager.dialog_data["audio"].get("spotify_url")
+            spotify_link = (
+                f' [<a href="{spotify_url}">Spotify</a>]' if spotify_url else ""
+            )
+
+            youtube_url = (
+                f'[<a href="https://youtube.com/watch?v={video_id}">YouTube</a>]'
+            )
+            youtube_music_link = (
+                f' [<a href="https://music.youtube.com/watch?v={video_id}">YM</a>]'
+            )
+
+            header_line = (
+                f"{moderation_flag}{language_prefix}"
+                f"{youtube_url}{youtube_music_link}{spotify_link}"
+            )
 
         if decision_label:
             decision_label += " " + datetime.now().strftime("%H:%M:%S")
 
         order_message = await bot.send_message(
             settings.ADMINS_CHAT_ID,
-            f"{moderation_flag}{language_prefix}{youtube_url}{youtube_music_link}{spotify_link}\n\n"
+            f"{header_line}\n\n"
             f"{WEEKDAYS[ether.ether_date.weekday()]}, {ether.name}\n{duration_label}"
             f"🕓 {play_time_str}\n"
             f"від {callback.from_user.mention_html()} ({user_approved_orders}/{user_orders})\n"
@@ -693,17 +752,28 @@ async def on_ether_selected(
         if not confirmation_status:
             return
 
+        # ── Queue download or play immediately ────────────────────────────
         if not play_now or await get_alert_state():
-            await add_to_download_queue(video_id)
+            if is_file_order:
+                await add_telegram_to_download_queue(file_id)
+            elif video_id:
+                await add_to_download_queue(video_id)
             return
 
+        # Play right now
         order.play_start = datetime.now()
 
-        song_path = get_song_path(video_id)
-        if song_path:
-            player.play(str(song_path))
+        if is_file_order:
+            # Download from Telegram and play (file is usually small, fast)
+            downloaded = await download_telegram_file(file_id)
+            if downloaded:
+                player.play(str(downloaded))
         else:
-            player.play(f"https://youtube.com/watch?v={video_id}")
+            song_path = get_song_path(video_id)
+            if song_path:
+                player.play(str(song_path))
+            else:
+                player.play(f"https://youtube.com/watch?v={video_id}")
 
         await uow.flush()
 
@@ -711,8 +781,6 @@ async def on_ether_selected(
 
     await uow.flush()
     await callback.message.answer("Пісня не встигне програти до закінчення етеру")
-
-
 def has_time_passed(cur_time: time, time_str: str | None) -> bool:
     if time_str is None:
         return False
@@ -906,9 +974,9 @@ order_menu = Dialog(
         Const(
             "Чим хочеш порадувати кампус?\n"
             "Скинь посилання на трек з Youtube Music або Spotify!\n\n"
-            "Пам’ятай — під час повітряної тривоги мовлення не здійснюється."
+            "Пам'ятай — під час повітряної тривоги мовлення не здійснюється."
         ),
-        MessageInput(audio_input, content_types=[ContentType.AUDIO]),
+        MessageInput(audio_input, content_types=[ContentType.AUDIO, ContentType.VOICE]),
         MessageInput(text_input, content_types=[ContentType.TEXT]),
         Start(
             text=Const("Відміна"),

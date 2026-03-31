@@ -8,10 +8,13 @@ from sqlalchemy.orm import selectinload
 
 from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
 from app.bot.models import Order
-from app.bot.player.mpv_player import player
+from app.bot.player.mpv_player import player, _get_order_play_source
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
-from app.bot.services.song_downloader import add_to_download_queue, get_song_path
+from app.bot.services.song_downloader import (
+    add_to_download_queue,
+    add_telegram_to_download_queue,
+)
 from app.bot.states.alert_state import get_alert_state
 
 order_count_pattern = r"\((\d+)/(\d+)\)$"
@@ -117,6 +120,8 @@ async def confirm_order(
             order.decided_by = callback.from_user.id
 
             video_id = order.video_id
+            file_id = order.file_id
+            is_file_order = bool(file_id)
             download_song = True
 
             order_title = html.escape(order.title)
@@ -191,11 +196,9 @@ async def confirm_order(
                     order.play_start = play_time
 
                     download_song = False
-                    song_path = get_song_path(video_id)
-                    if song_path:
-                        player.play(str(song_path))
-                    else:
-                        player.play(f"https://youtube.com/watch?v={video_id}")
+                    source = await _get_order_play_source(order)
+                    if source:
+                        player.play(source)
 
                     play_time_str = play_time.strftime("%H:%M")
 
@@ -257,8 +260,11 @@ async def confirm_order(
 
             await uow.flush()
 
-            if video_id and download_song:
-                await add_to_download_queue(video_id)
+            if download_song:
+                if is_file_order:
+                    await add_telegram_to_download_queue(file_id)
+                elif video_id:
+                    await add_to_download_queue(video_id)
         finally:
             order_locks.pop(order_id, None)
 

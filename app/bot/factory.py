@@ -13,6 +13,7 @@ from app.bot.player.streamer import ffmpeg_streamer
 from app.bot.routers import router
 from app.bot.scheduler import Scheduler
 from app.bot.services.statistics import update_statistics
+from app.bot.services.song_downloader import set_bot_instance
 from app.bot.services.volume_changer import VolumeChanger
 from app.database import sessionmaker, engine
 from app.redis import redis_connection
@@ -28,6 +29,8 @@ async def start_current_ether():
 async def on_startup(bot: Bot) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    set_bot_instance(bot)
 
     await VolumeChanger.load_volume_points_by_session(sessionmaker)
     VolumeChanger.check_and_set_nearest_volume()

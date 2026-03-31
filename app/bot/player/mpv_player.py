@@ -9,7 +9,13 @@ from typing import Optional
 
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
-from app.bot.services.song_downloader import delete_song, get_song_path, is_downloading
+from app.bot.services.song_downloader import (
+    delete_song,
+    download_telegram_file,
+    get_song_path,
+    get_telegram_file_key,
+    is_downloading,
+)
 from app.bot.states.alert_state import get_alert_state
 from app.database import sessionmaker
 from app.settings import settings
@@ -161,6 +167,33 @@ def _is_announcement_time(
     return False
 
 
+async def _get_order_play_source(order: Order) -> Optional[str]:
+    """
+    Return the file path or URL to play for the given order.
+
+    For Telegram file orders (file_id set): returns the local cached path,
+    downloading from Telegram first if needed.
+    For YouTube orders: returns the local cached path or a YouTube URL.
+    """
+    if order.file_id:
+        key = get_telegram_file_key(order.file_id)
+        path = get_song_path(key)
+        if path:
+            return str(path)
+
+        downloaded = await download_telegram_file(order.file_id)
+        if downloaded:
+            return str(downloaded)
+        print(f"Could not obtain Telegram file for order {order.id}")
+        return None
+    elif order.video_id:
+        path = get_song_path(order.video_id)
+        if path:
+            return str(path)
+        return f"https://youtube.com/watch?v={order.video_id}"
+    return None
+
+
 async def get_current_track(
     async_session: async_sessionmaker[AsyncSession],
 ) -> Optional[str]:
@@ -201,15 +234,10 @@ async def get_current_track(
                 return
 
             order.play_start = datetime.now()
-            video_id = order.video_id
 
             await uow.flush()
 
-            song_path = get_song_path(video_id)
-            if song_path:
-                return str(song_path)
-
-            return f"https://youtube.com/watch?v={video_id}"
+            return await _get_order_play_source(order)
 
 
 async def set_latest_track_played(async_session):
@@ -225,18 +253,21 @@ async def set_latest_track_played(async_session):
                 return
 
             order.played = True
-            video_id = order.video_id
 
-            is_same_song_orders_exists = await uow.orders.check_exists(
-                Order.video_id == video_id,
-                Order.played == False,
-                Order.confirmed == True,
-                Order.expected_play_time
-                >= order.expected_play_time - timedelta(hours=1),
-            )
+            # Clean up cached YouTube songs when no longer needed.
+            # Telegram files are kept (they were intentionally uploaded).
+            if order.video_id:
+                video_id = order.video_id
+                is_same_song_orders_exists = await uow.orders.check_exists(
+                    Order.video_id == video_id,
+                    Order.played == False,
+                    Order.confirmed == True,
+                    Order.expected_play_time
+                    >= order.expected_play_time - timedelta(hours=1),
+                )
 
-            if not is_same_song_orders_exists and not is_downloading(video_id):
-                delete_song(video_id)
+                if not is_same_song_orders_exists and not is_downloading(video_id):
+                    delete_song(video_id)
 
 
 @physical_player.event_callback("end-file")

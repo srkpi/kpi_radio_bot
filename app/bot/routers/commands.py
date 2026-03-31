@@ -28,7 +28,7 @@ from app.bot.models.banned_user import BannedUser
 from app.bot.models.block_phrase import BlockPhrase
 from app.bot.models.day_state import DayState
 from app.bot.models.volume_change_point import VolumeChangePoint
-from app.bot.player.mpv_player import player
+from app.bot.player.mpv_player import player, _get_order_play_source
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.routers.order_menu import (
     extract_youtube_video_id,
@@ -167,7 +167,7 @@ async def help_command(message: Message, dialog_manager: DialogManager):
     await dialog_manager.start(HelpStates.select, mode=StartMode.RESET_STACK)
 
 
-async def skip(message: Message, uow: UnitOfWork):
+async def skip(message, uow):
     today = datetime.now()
     order = await uow.orders.find_one(
         Ether.ether_date == today.date(),
@@ -196,13 +196,9 @@ async def skip(message: Message, uow: UnitOfWork):
 
     if next_order:
         next_order.play_start = datetime.now()
-        video_id = next_order.video_id
-
-        song_path = get_song_path(video_id)
-        if song_path:
-            player.play(str(song_path))
-        else:
-            player.play(f"https://youtube.com/watch?v={video_id}")
+        source = await _get_order_play_source(next_order)
+        if source:
+            player.play(source)
 
     await uow.flush()
     await message.answer("Трек скіпнуто")
@@ -244,13 +240,9 @@ async def cancel(message: Message, bot: Bot, uow: UnitOfWork):
 
         if next_order:
             next_order.play_start = datetime.now()
-            video_id = next_order.video_id
-
-            song_path = get_song_path(video_id)
-            if song_path:
-                player.play(str(song_path))
-            else:
-                player.play(f"https://youtube.com/watch?v={video_id}")
+            source = await _get_order_play_source(next_order)
+            if source:
+                player.play(source)
 
     video_id = order.video_id
     is_same_song_orders_exists = await uow.orders.check_exists(
