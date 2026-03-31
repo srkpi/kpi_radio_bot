@@ -5,7 +5,6 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage, RedisEventIsolation
 from aiogram_dialog import setup_dialogs
-from sqlalchemy import text
 
 from app.bot.middlewares.database import DatabaseMiddleware
 from app.bot.models import Base
@@ -30,7 +29,6 @@ async def start_current_ether():
 async def on_startup(bot: Bot) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.execute(text("ALTER TABLE orders ADD COLUMN file_id TEXT"))
 
     set_bot_instance(bot)
 
