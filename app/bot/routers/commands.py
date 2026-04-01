@@ -2,6 +2,7 @@ import asyncio
 import html
 import io
 import os
+from pathlib import Path
 import sqlite3
 import subprocess
 import re
@@ -41,6 +42,7 @@ from app.bot.services.feedback import get_user_message_id
 from app.bot.services.song_downloader import (
     add_to_download_queue,
     delete_song,
+    download_telegram_file,
     get_song_path,
     is_downloading,
 )
@@ -1294,8 +1296,37 @@ async def restart(message: Message, uow: UnitOfWork):
 
 async def force_play(message: Message, uow: UnitOfWork):
     url = get_text_after_command(message)
-    if not url:
-        await message.reply("Невірний формат команди! /force_play {url}")
+    reply = message.reply_to_message
+
+    song_path = None
+    title = ""
+
+    if url:
+        video_info = await search_song_by_url(url, message, uow, False)
+        if video_info:
+            video_id = video_info["video_id"]
+            title = video_info["title"]
+            existing_path = get_song_path(video_id)
+            song_path = (
+                str(existing_path)
+                if existing_path
+                else f"https://youtube.com/watch?v={video_id}"
+            )
+
+    elif reply and (reply.audio or reply.voice):
+        attachment = reply.audio or reply.voice
+        downloaded_path = await download_telegram_file(attachment.file_id)
+
+        if downloaded_path:
+            song_path = str(downloaded_path)
+            title = getattr(attachment, "file_name", "Голосове повідомлення")
+        else:
+            await message.reply("Не вдалось завантажити аудіо :(")
+            return
+    else:
+        await message.reply(
+            "Невірний формат! Введіть URL або дайте відповідь (reply) на аудіо/голосове."
+        )
         return
 
     today = datetime.now()
@@ -1314,19 +1345,9 @@ async def force_play(message: Message, uow: UnitOfWork):
         order.played = True
         await uow.flush()
 
-    video_info = await search_song_by_url(url, message, uow, False)
-    if video_info is None:
-        return
-
-    video_id = video_info["video_id"]
-
-    song_path = get_song_path(video_id)
     if song_path:
-        player.play(str(song_path))
-    else:
-        player.play(f"https://youtube.com/watch?v={video_id}")
-
-    await message.reply(f"⏯️ Примусово програється: {video_info['title']}")
+        player.play(song_path)
+        await message.reply(f"⏯️ Примусово програється: **{title}**")
 
 
 async def force_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
