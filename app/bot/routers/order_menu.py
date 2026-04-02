@@ -972,10 +972,9 @@ async def get_ethers(dialog_manager: DialogManager, **kwargs):
 order_menu = Dialog(
     Window(
         Const(
-            "Команда Радіо КПІ вітає тебе з Днем дурня!\n\n"
-            "Хочеш, аби про твоє почуття гумору дізналися всі — пиши свій анекдот у зворотний зв'язок та вкажи приблизний час програвання.\n\n"
-            "Модератори особисто відберуть та озвучать найкращі гуморески для програвання на Політехнічній.\n\n"
-            "Расизм, сексизм, вульгарність — бан."
+            "Чим хочеш порадувати кампус?\n"
+            "Скинь посилання на трек з Youtube Music або Spotify!\n\n"
+            "Пам'ятай — під час повітряної тривоги мовлення не здійснюється."
         ),
         MessageInput(audio_input, content_types=[ContentType.AUDIO, ContentType.VOICE]),
         MessageInput(text_input, content_types=[ContentType.TEXT]),
