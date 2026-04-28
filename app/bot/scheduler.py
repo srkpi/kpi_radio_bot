@@ -58,13 +58,14 @@ class Scheduler:
             hours=1,
             args=(self._async_sessionmaker,),
         )
-        self._scheduler.add_job(
-            self.scheduled_restart,
-            "cron",
-            hour=22,
-            minute=5,
-            args=(self._async_sessionmaker, self._bot),
-        )
+        # Temporary disable restart
+        # self._scheduler.add_job(
+        #     self.scheduled_restart,
+        #     "cron",
+        #     hour=22,
+        #     minute=5,
+        #     args=(self._async_sessionmaker, self._bot),
+        # )
         self._scheduler.add_job(
             VolumeChanger.check_and_set_volume,
             "cron",
@@ -87,6 +88,9 @@ class Scheduler:
     async def scheduled_restart(
         async_session: async_sessionmaker[AsyncSession], bot: Bot
     ) -> None:
+        # Temporary disable restart
+        return
+
         async with async_session() as session, session.begin():
             async with UnitOfWork(session) as uow:
                 await uow.flush()
@@ -125,8 +129,8 @@ class Scheduler:
         if await Scheduler.play_current_song(async_session):
             return
 
-            #await bot.send_message(
+            # await bot.send_message(
             #    settings.ADMINS_CHAT_ID,
             #    "💥🔄✅ Автоматично відновлено програвання",
             #    message_thread_id=settings.ADMINS_MODERATION_THREAD_ID,
-            #)
+            # )
