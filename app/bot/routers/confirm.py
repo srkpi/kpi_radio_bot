@@ -162,9 +162,7 @@ async def confirm_order(
                         )
                         total_duration -= minus_playing
 
-                    play_delay = AVERAGE_SONG_SWITCH_DELAY * (
-                        ether_not_played_orders_len - 1
-                    )
+                    play_delay = AVERAGE_SONG_SWITCH_DELAY * ether_not_played_orders_len
                     play_time = datetime.now() + timedelta(
                         seconds=total_duration + play_delay
                     )
@@ -220,7 +218,7 @@ async def confirm_order(
                     o.duration for o in ether_orders if o.id != order.id
                 )
 
-                play_delay = AVERAGE_SONG_SWITCH_DELAY * (len(ether_orders) - 1)
+                play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
                 play_time = datetime.combine(
                     order_ether.ether_date, order_ether.start_time
                 ) + timedelta(seconds=total_duration + play_delay)
@@ -281,9 +279,14 @@ async def decline_order(
     if order_id not in order_locks:
         order_locks[order_id] = asyncio.Lock()
 
+    ether_ended = False
+
     async with order_locks[order_id]:
         try:
-            order = await uow.orders.find_one(Order.id == order_id)
+            order = await uow.orders.find_one(
+                Order.id == order_id,
+                options=[selectinload(Order.ether)],
+            )
             if order is None:
                 text = callback.message.html_text + "\nОрдер не знайдено"
                 await change_callback_message_text(callback, text)
@@ -293,10 +296,23 @@ async def decline_order(
                 return
 
             current_datetime = datetime.now()
+
+            # Check whether the ether has already ended before declining.
+            order_ether = order.ether
+            if order_ether is not None:
+                ether_ended = order_ether.ether_date < current_datetime.date() or (
+                    order_ether.ether_date == current_datetime.date()
+                    and order_ether.end_time < current_datetime.time()
+                )
+
             text = (
                 callback.message.html_text
                 + f"\n❌ Відхилено ({callback.from_user.mention_html()} {current_datetime.strftime('%H:%M:%S')})"
             )
+
+            if ether_ended:
+                text += "\n⏰ Етер закінчився"
+
             order.confirmed = False
             order.decision_timestamp = current_datetime
             order.decided_by = callback.from_user.id
@@ -305,8 +321,9 @@ async def decline_order(
         finally:
             order_locks.pop(order_id, None)
 
-    await callback.bot.send_message(
-        callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
-    )
-
     await change_callback_message_text(callback, text)
+
+    if not ether_ended:
+        await callback.bot.send_message(
+            callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
+        )

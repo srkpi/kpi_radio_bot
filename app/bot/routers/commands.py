@@ -2,7 +2,6 @@ import asyncio
 import html
 import io
 import os
-from pathlib import Path
 import sqlite3
 import subprocess
 import re
@@ -1658,6 +1657,127 @@ async def list_block_phrases(message: Message, uow: UnitOfWork):
         lines.append(f"{i}) {html.escape(phrase.phrase)}")
 
     await message.answer("\n".join(lines))
+
+
+async def admin_direct_audio(message: Message, dialog_manager: DialogManager):
+    """
+    Lets admins drop an audio file directly into the private bot chat without
+    first pressing "Замовити пісню".  Behaviour is identical to the ordering
+    dialog's audio-input step — the bot jumps straight to day selection.
+    """
+    user_id = message.from_user.id
+    if not settings.ADMINS or user_id not in settings.ADMINS:
+        # Silently ignore non-admins (the dialog's own handler covers them).
+        return
+
+    if message.audio:
+        file_id = message.audio.file_id
+        duration = message.audio.duration or 0
+        title = message.audio.title or message.audio.file_name or "Аудіофайл"
+        title = remove_brackets(title)
+    elif message.voice:
+        file_id = message.voice.file_id
+        duration = message.voice.duration or 0
+        title = "Голосове повідомлення"
+    else:
+        return
+
+    song_info = {
+        "title": title,
+        "video_id": None,
+        "file_id": file_id,
+        "spotify_url": None,
+        "duration": duration,
+        "language": None,
+    }
+
+    from app.bot.states.order import OrderStates
+
+    await dialog_manager.start(
+        OrderStates.day,
+        mode=StartMode.RESET_STACK,
+        data={"audio": song_info},
+    )
+
+
+async def merge_ethers(message: Message, uow: UnitOfWork):
+    """
+    /merge_ethers [date|date_range]
+
+    Merges all same-named, non-cancelled DB ethers for the given date(s) into a
+    single contiguous time block.  This eliminates artificial gaps between, e.g.,
+    the two "Вечірній етер" records that bracket a locked podcast slot: after
+    merging, users can order across the full 19:40-22:00 window without hitting
+    "no free time" messages.
+
+    The merged ether keeps the earliest start_time and the latest end_time.
+    All orders from secondary ethers are reassigned to the primary record and
+    secondary ethers are cancelled.  Expected play times are preserved — they
+    remain valid because the primary ether's window now covers them.
+    """
+    arg = get_text_after_command(message)
+    dates, _ = parse_dates_and_reason(arg)
+    if not dates:
+        await message.reply(
+            "Невірний формат дати! Використовуйте /merge_ethers, "
+            "/merge_ethers 21.06 або /merge_ethers 21.06-30.06"
+        )
+        return
+
+    results: list[str] = []
+
+    for d in dates:
+        ethers = await uow.ethers.find(
+            Ether.ether_date == d,
+            Ether.cancelled == False,
+            options=[selectinload(Ether.orders)],
+            order=[Ether.start_time.asc()],
+        )
+
+        # Group non-cancelled ethers by display name.
+        by_name: dict[str, list[Ether]] = {}
+        for ether in ethers:
+            by_name.setdefault(ether.name, []).append(ether)
+
+        merged_any = False
+
+        for name, ether_group in by_name.items():
+            if len(ether_group) <= 1:
+                continue  # Nothing to merge for this name.
+
+            # Sort chronologically so the earliest record becomes the primary.
+            ether_group.sort(key=lambda e: e.start_time)
+            primary = ether_group[0]
+            rest = ether_group[1:]
+
+            max_end = max(e.end_time for e in ether_group)
+            old_end = primary.end_time
+            primary.end_time = max_end
+
+            total_moved = 0
+            for secondary in rest:
+                for order in secondary.orders:
+                    order.ether_id = primary.id
+                    total_moved += 1
+                secondary.cancelled = True
+
+            results.append(
+                f"✅ [{d.strftime('%d.%m')}] «{name}»: "
+                f"{primary.start_time.strftime('%H:%M')}-{old_end.strftime('%H:%M')} "
+                f"+ {len(rest)} ефір(ів) → "
+                f"{primary.start_time.strftime('%H:%M')}-{max_end.strftime('%H:%M')} "
+                f"({total_moved} замовлень перенесено)"
+            )
+            merged_any = True
+
+        if not merged_any:
+            results.append(
+                f"ℹ️ [{d.strftime('%d.%m')}] Немає що об'єднувати "
+                f"(не знайдено однойменних ETH-записів)"
+            )
+
+    await uow.flush()
+    await message.reply("\n".join(results) if results else "Немає що об'єднувати!")
 
 
 async def not_moderated(message: Message, uow: UnitOfWork):

@@ -64,6 +64,23 @@ async def select_ether_handler(
     await dialog_manager.update(dialog_manager.dialog_data)
 
 
+def _format_track_link(order: Order | None, fallback: str = "відсутній") -> str:
+    """
+    Return an HTML representation for an order in the 'now playing' header.
+    YouTube orders get a hyperlink; file orders show the filename with 📁 prefix.
+    """
+    if order is None:
+        return fallback
+
+    safe_title = html.escape(order.title or "—")
+    if order.video_id:
+        return (
+            f'<a href="https://youtube.com/watch?v={order.video_id}">{safe_title}</a>'
+        )
+
+    return f"📁 {safe_title}"
+
+
 async def get_ethers_info(
     uow: UnitOfWork,
     current_order: Order | None,
@@ -116,11 +133,12 @@ async def get_ethers_info(
                 if settings.ADMINS and order.ordered_by in settings.ADMINS:
                     is_admin_order = True
 
-                safe_title = html.escape(order.title)
+                safe_title = html.escape(order.title or "—")
                 if order.video_id:
                     title_link = f'<a href="https://youtube.com/watch?v={order.video_id}">{safe_title}</a>'
                 else:
-                    title_link = safe_title
+                    # File order — display filename (not a broken YouTube link).
+                    title_link = f"📁 {safe_title}"
 
                 icon = ">" if current_order and order.id == current_order.id else "•"
                 orders_string += f"{icon} {order.expected_play_time.strftime('%H:%M')} - {title_link}\n"
@@ -266,21 +284,10 @@ async def get_data(dialog_manager: DialogManager, **kwargs):
         formatted_date = selected_date.strftime("%d.%m")
         header = "Історія треків за " + formatted_date
     else:
-        previous_track = (
-            f'<a href="https://youtube.com/watch?v={previous_order.video_id}">{html.escape(previous_order.title)}</a>'
-            if previous_order
-            else "відсутній"
-        )
-        current_track = (
-            f'<a href="https://youtube.com/watch?v={current_order.video_id}">{html.escape(current_order.title)}</a>'
-            if current_order
-            else "нічого"
-        )
-        next_track = (
-            f'<a href="https://youtube.com/watch?v={next_order.video_id}">{html.escape(next_order.title)}</a>'
-            if next_order
-            else "відсутній"
-        )
+        previous_track = _format_track_link(previous_order, fallback="відсутній")
+        current_track = _format_track_link(current_order, fallback="нічого")
+        next_track = _format_track_link(next_order, fallback="відсутній")
+
         header = (
             f"⏮ Попередній трек: {previous_track}\n"
             f"▶️ Зараз грає: {current_track}\n"

@@ -15,6 +15,8 @@ from app.bot.repositories.uow import UnitOfWork
 from app.redis import redis_connection
 from app.settings import settings
 
+_REPLY_PS = "\n\n📌 P.S. Щоб відповісти — зроби реплай на це повідомлення"
+
 
 async def store_message_mapping(
     user_id: int,
@@ -179,7 +181,7 @@ async def send_reply(message: Message, bot: Bot, uow: UnitOfWork):
                 new_entities.append(adjusted_entity)
 
     user_id = order.ordered_by
-    reply_text = prefix + stripped_text
+    reply_text = prefix + stripped_text + _REPLY_PS
 
     forwarded_message = await bot.send_message(
         user_id, reply_text, parse_mode=None, entities=new_entities
@@ -347,8 +349,9 @@ async def admin_feedback_reply_handler(message: Message, bot: Bot):
             message.text,
             message.entities,
         )
+        info_text_with_ps = info_text + _REPLY_PS
         forwarded_message = await send_message_with_reply(
-            user_id, user_message_id, info_text, bot, entities=entities
+            user_id, user_message_id, info_text_with_ps, bot, entities=entities
         )
         await store_message_mapping(
             user_id,
@@ -358,7 +361,7 @@ async def admin_feedback_reply_handler(message: Message, bot: Bot):
         return
 
     info_message = await send_message_with_reply(
-        user_id, user_message_id, "📨 Відповідь від модераторів:", bot
+        user_id, user_message_id, "📨 Відповідь від модераторів:" + _REPLY_PS, bot
     )
     forwarded_message = await bot.copy_message(
         user_id,

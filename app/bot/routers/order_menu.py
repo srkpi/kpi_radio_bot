@@ -42,6 +42,15 @@ from app.settings import settings
 
 ytmusic = YTMusic()
 
+# Maximum song duration (seconds) allowed for break ethers without manual moderation,
+# even if the track is whitelisted.
+BREAK_MAX_AUTO_DURATION = 5 * 60  # 5 minutes
+
+# Maximum user orders auto-confirmed during the evening / long ether.
+LONG_ETHER_USER_LIMIT = 5
+# Maximum user orders auto-confirmed during short (break) ethers.
+SHORT_ETHER_USER_LIMIT = 2
+
 with open("filtered_words.txt", "r", encoding="utf-8") as f:
     FILTERED_UK_WORDS = set(f.read().splitlines())
 
@@ -234,10 +243,6 @@ async def search_song_by_url(
 
     if language == "ru":
         language = detect_language_advanced(song_full_title)
-        # if apply_restrictions and language == "ru":
-        #    return await message.answer(
-        #        "І цими пальцями ти пишеш мамі що любиш її? Жодних пісень російською!"
-        #    )
 
     if apply_restrictions:
         full_title = song_original_full_title.lower()
@@ -312,6 +317,8 @@ async def text_input(
     manager.dialog_data["audio"] = song_info
 
     await manager.next()
+
+
 async def on_day_selected(
     callback: CallbackQuery,
     widget: Any,
@@ -357,11 +364,33 @@ async def on_ether_selected(
             int, selected_ether["start"].split(":")
         )
         ether_start_time = time(ether_start_hour, ether_start_minute)
+
+        # Also extract schedule end time so we can find covering (merged) ethers.
+        ether_end_hour, ether_end_minute = map(
+            int, selected_ether["end"].split(":")
+        )
+        ether_end_time_sched = time(ether_end_hour, ether_end_minute)
+
         ether = await uow.ethers.find_one(
             Ether.ether_date == selected_date,
             Ether.start_time == ether_start_time,
             Ether.cancelled == False,
         )
+
+        # ── Merged-ether fallback ─────────────────────────────────────────────
+        # If the exact start-time record is gone (e.g. it was merged into a
+        # wider ether by /merge_ethers), look for a non-cancelled ether whose
+        # window fully covers this schedule slot.  This lets users order into
+        # the merged block seamlessly instead of creating a duplicate record.
+        if ether is None:
+            ether = await uow.ethers.find_one(
+                Ether.ether_date == selected_date,
+                Ether.start_time < ether_start_time,
+                Ether.end_time >= ether_end_time_sched,
+                Ether.cancelled == False,
+                order=[Ether.start_time.desc()],
+            )
+
         duration = manager.dialog_data["audio"]["duration"]
         if ether:
             ether_orders_1 = await uow.orders.find(
@@ -415,7 +444,19 @@ async def on_ether_selected(
                             0,
                         )
 
-                play_time = now + timedelta(seconds=total_duration)
+                    # ── FIX: include switch delays for active ether ──────────
+                    # Previously active-ether estimates omitted the inter-song
+                    # gaps, causing the shown time to be earlier than actual.
+                    # Now both active and inactive paths use the same formula.
+                    play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
+                    not_confimred_orders_duration += (
+                        AVERAGE_SONG_SWITCH_DELAY * len(ether_orders_2)
+                    )
+                    play_time = now + timedelta(seconds=total_duration + play_delay)
+                else:
+                    play_now = True
+                    play_time = datetime.now()
+                    play_time_str = play_time.strftime("%H:%M")
             else:
                 play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
                 not_confimred_orders_duration += AVERAGE_SONG_SWITCH_DELAY * len(
@@ -477,7 +518,7 @@ async def on_ether_selected(
 
         if is_file_order:
             confirmation_status = True
-            decision_label = "✅ Файл адміна"
+            decision_label = f"✅ Файл: {order_title}"
             moderation_flag = "📁 "
             cancel_text = ""
         else:
@@ -557,9 +598,8 @@ async def on_ether_selected(
                     else "🟢 "
                 )
 
-                if user_orders <= 2:
-                    confirmation_status = True
-                elif is_long_ether and user_orders <= 5:
+                user_limit = LONG_ETHER_USER_LIMIT if is_long_ether else SHORT_ETHER_USER_LIMIT
+                if user_orders <= user_limit:
                     confirmation_status = True
 
             if same_ether_orders and not is_long_ether:
@@ -609,10 +649,21 @@ async def on_ether_selected(
                 )
                 confirmation_status = False
 
+            # ── Break-ether duration gate ────────────────────────────────────
+            # Songs longer than BREAK_MAX_AUTO_DURATION (5 min) must pass
+            # manual moderation during short (break) ethers, even if whitelisted.
+            if (
+                confirmation_status is True
+                and not is_long_ether
+                and duration > BREAK_MAX_AUTO_DURATION
+            ):
+                confirmation_status = None   # route to manual review
+                decision_label = "⏳ Очікує модерації (трек > 5 хв на перерві)"
+
         play_now = False
         if confirmation_status is None:
             await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
-            decision_label = ""
+            decision_label = decision_label if decision_label else ""
         elif confirmation_status == False:
             await callback.message.answer(cancel_text)
         else:
@@ -703,7 +754,7 @@ async def on_ether_selected(
             duration_label = ""
 
         if is_file_order:
-            # File orders: show a simple header without YouTube links
+            # File orders: show filename prominently in the header.
             header_line = f"📁 {html.escape(manager.dialog_data['audio']['title'])}"
         else:
             language = manager.dialog_data["audio"]["language"]
@@ -781,6 +832,8 @@ async def on_ether_selected(
 
     await uow.flush()
     await callback.message.answer("Пісня не встигне програти до закінчення етеру")
+
+
 def has_time_passed(cur_time: time, time_str: str | None) -> bool:
     if time_str is None:
         return False

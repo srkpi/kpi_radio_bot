@@ -15,6 +15,7 @@ from app.bot.routers.feedback_menu import feedback_menu
 from app.bot.routers.help_menu import help_menu
 from app.bot.routers.commands import (
     add_block_phrase,
+    admin_direct_audio,
     alert,
     auto_moderation_list,
     ban,
@@ -28,6 +29,7 @@ from app.bot.routers.commands import (
     list_block_phrases,
     list_volume_change_points,
     manual_list,
+    merge_ethers,
     not_moderated,
     now_playing,
     remove_lists,
@@ -83,6 +85,11 @@ private_router.message.filter(F.chat.type == ChatType.PRIVATE)
 private_router.message.register(start, CommandStart())
 private_router.message.register(help_command, Command("help"))
 private_router.message.register(traktor, Command("traktor"))
+private_router.message.register(
+    admin_direct_audio,
+    (F.audio | F.voice),
+)
+
 private_router.message.register(user_feedback_reply_handler, F.reply_to_message)
 
 private_router.error.register(context_not_found, ExceptionTypeFilter(UnknownIntent))
@@ -266,6 +273,11 @@ router.message.register(
 router.message.register(
     not_moderated,
     Command("not_moderated"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    merge_ethers,
+    Command("merge_ethers"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 
