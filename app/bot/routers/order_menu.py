@@ -522,6 +522,7 @@ async def on_ether_selected(
             moderation_flag = "📁 "
             cancel_text = ""
         else:
+            decision_label = ""
             same_orders = await uow.orders.find(Order.video_id == video_id)
 
             recent_ordered = False
@@ -663,7 +664,6 @@ async def on_ether_selected(
         play_now = False
         if confirmation_status is None:
             await callback.message.answer("Дякуємо за замовлення, чекай на модерацію!")
-            decision_label = decision_label if decision_label else ""
         elif confirmation_status == False:
             await callback.message.answer(cancel_text)
         else:
