@@ -38,6 +38,7 @@ from app.bot.routers.order_menu import (
     remove_brackets,
 )
 from app.bot.services.feedback import get_user_message_id
+from app.bot.services.notifications import notify_orders_cancelled
 from app.bot.services.song_downloader import (
     add_to_download_queue,
     delete_song,
@@ -302,7 +303,7 @@ async def now_playing(message: Message, uow: UnitOfWork):
     await message.answer(text, parse_mode=None)
 
 
-async def stop(message: Message, uow: UnitOfWork):
+async def stop(message: Message, bot: Bot, uow: UnitOfWork):
     today = datetime.now()
     ether = await uow.ethers.find_one(
         Ether.ether_date == today.date(),
@@ -312,8 +313,11 @@ async def stop(message: Message, uow: UnitOfWork):
         options=[selectinload(Ether.orders)],
     )
 
+    cancelled_orders: list[Order] = []
     if ether is not None:
         for order in ether.orders:
+            if not order.played:
+                cancelled_orders.append(order)
             order.played = True
 
         await uow.flush()
@@ -326,9 +330,10 @@ async def stop(message: Message, uow: UnitOfWork):
         return
 
     await message.answer("Чергу зупинено")
+    await notify_orders_cancelled(bot, cancelled_orders, "адміністратор зупинив чергу")
 
 
-async def stop_today(message: Message, uow: UnitOfWork):
+async def stop_today(message: Message, bot: Bot, uow: UnitOfWork):
     today = datetime.now()
     ethers = await uow.ethers.find(
         Ether.ether_date == today.date(),
@@ -337,17 +342,26 @@ async def stop_today(message: Message, uow: UnitOfWork):
         options=[selectinload(Ether.orders)],
     )
 
+    cancelled_orders: list[Order] = []
     for ether in ethers:
         for order in ether.orders:
+            if not order.played:
+                cancelled_orders.append(order)
             order.played = True
 
     await uow.flush()
 
     player.stop()
+
     await message.answer("Чергу зупинено. Всі замовлення на сьогодні видалено!")
+    await notify_orders_cancelled(
+        bot,
+        cancelled_orders,
+        "адміністратор скасував усі замовлення на сьогодні",
+    )
 
 
-async def stop_all(message: Message, uow: UnitOfWork):
+async def stop_all(message: Message, bot: Bot, uow: UnitOfWork):
     today = datetime.now()
     today_ethers = await uow.ethers.find(
         Ether.ether_date == today.date(),
@@ -356,8 +370,11 @@ async def stop_all(message: Message, uow: UnitOfWork):
         options=[selectinload(Ether.orders)],
     )
 
+    cancelled_orders: list[Order] = []
     for ether in today_ethers:
         for order in ether.orders:
+            if not order.played:
+                cancelled_orders.append(order)
             order.played = True
 
     next_days_ethers = await uow.ethers.find(
@@ -368,12 +385,18 @@ async def stop_all(message: Message, uow: UnitOfWork):
 
     for ether in next_days_ethers:
         for order in ether.orders:
+            if not order.played:
+                cancelled_orders.append(order)
             order.played = True
 
     await uow.flush()
 
     player.stop()
+
     await message.answer("Чергу зупинено. Всі замовлення видалено!")
+    await notify_orders_cancelled(
+        bot, cancelled_orders, "адміністратор скасував усі замовлення"
+    )
 
 
 async def force_play_song(uow: UnitOfWork, filename: str):
@@ -411,7 +434,7 @@ async def snow(message: Message, uow: UnitOfWork):
     await message.answer("Сніжинки пушинки!")
 
 
-async def holiday(message: Message, uow: UnitOfWork):
+async def holiday(message: Message, bot: Bot, uow: UnitOfWork):
     arg = get_text_after_command(message)
     dates, _ = parse_dates_and_reason(arg)
     if not dates:
@@ -419,6 +442,8 @@ async def holiday(message: Message, uow: UnitOfWork):
             "Невірний формат дати! Використовуйте /holiday або /holiday 21.06 або /holiday 21.06-30.06"
         )
         return
+
+    to_cancel_batches: list[tuple[list[Order], str]] = []
 
     for d in dates:
         if d.weekday() == 6:
@@ -437,14 +462,26 @@ async def holiday(message: Message, uow: UnitOfWork):
             options=[selectinload(Ether.orders)],
         )
 
+        cancelled_orders: list[Order] = []
         for ether in ethers:
             ether.cancelled = True
             for order in ether.orders:
+                if not order.played:
+                    cancelled_orders.append(order)
                 order.played = True
+
+        if cancelled_orders:
+            to_cancel_batches.append(
+                (
+                    cancelled_orders,
+                    f"день {d.strftime('%d.%m')} позначено вихідним",
+                )
+            )
 
     await uow.flush()
     if datetime.now().date() in dates:
         player.stop()
+
     if len(dates) == 1:
         await message.answer(
             f"День {dates[0].strftime('%d.%m')} тепер вихідний! Минула черга на цей день очищена!"
@@ -454,8 +491,11 @@ async def holiday(message: Message, uow: UnitOfWork):
             f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} тепер вихідні! Минула черга на ці дні очищена!"
         )
 
+    for orders_batch, batch_reason in to_cancel_batches:
+        await notify_orders_cancelled(bot, orders_batch, batch_reason)
 
-async def unholiday(message: Message, uow: UnitOfWork):
+
+async def unholiday(message: Message, bot: Bot, uow: UnitOfWork):
     arg = get_text_after_command(message)
     dates, _ = parse_dates_and_reason(arg)
     if not dates:
@@ -463,6 +503,8 @@ async def unholiday(message: Message, uow: UnitOfWork):
             "Невірний формат дати! Використовуйте /unholiday або /unholiday 21.06 або /unholiday 21.06-30.06"
         )
         return
+
+    to_cancel_batches: list[tuple[list[Order], str]] = []
 
     for d in dates:
         current_state = await uow.day_state.find_one(DayState.state_date == d)
@@ -478,14 +520,26 @@ async def unholiday(message: Message, uow: UnitOfWork):
             options=[selectinload(Ether.orders)],
         )
 
+        cancelled_orders: list[Order] = []
         for ether in ethers:
             ether.cancelled = True
             for order in ether.orders:
+                if not order.played:
+                    cancelled_orders.append(order)
                 order.played = True
+
+        if cancelled_orders:
+            to_cancel_batches.append(
+                (
+                    cancelled_orders,
+                    f"день {d.strftime('%d.%m')} позначено буднім",
+                )
+            )
 
     await uow.flush()
     if datetime.now().date() in dates:
         player.stop()
+
     if len(dates) == 1:
         await message.answer(
             f"День {dates[0].strftime('%d.%m')} тепер не вихідний! Минула черга на цей день очищена!"
@@ -495,8 +549,11 @@ async def unholiday(message: Message, uow: UnitOfWork):
             f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} тепер не вихідні! Минула черга на ці дні очищена!"
         )
 
+    for orders_batch, batch_reason in to_cancel_batches:
+        await notify_orders_cancelled(bot, orders_batch, batch_reason)
 
-async def close(message: Message, uow: UnitOfWork):
+
+async def close(message: Message, bot: Bot, uow: UnitOfWork):
     arg = get_text_after_command(message)
     dates, reason = parse_dates_and_reason(arg)
     if not dates:
@@ -504,6 +561,8 @@ async def close(message: Message, uow: UnitOfWork):
             "Невірний формат дати! Використовуйте /close, /close 21.06, /close 21.06-23.06 або /close 21.06 причина"
         )
         return
+
+    to_cancel_batches: list[tuple[list[Order], str]] = []
 
     for d in dates:
         current_state = await uow.day_state.find_one(DayState.state_date == d)
@@ -521,9 +580,16 @@ async def close(message: Message, uow: UnitOfWork):
             options=[selectinload(Ether.orders)],
         )
 
+        cancelled_orders: list[Order] = []
         for ether in ethers:
             for order in ether.orders:
+                if not order.played:
+                    cancelled_orders.append(order)
                 order.played = True
+
+        if cancelled_orders:
+            date_reason = reason or f"день {d.strftime('%d.%m')} закрито для замовлень"
+            to_cancel_batches.append((cancelled_orders, date_reason))
 
     await uow.flush()
     if datetime.now().date() in dates:
@@ -537,6 +603,9 @@ async def close(message: Message, uow: UnitOfWork):
         await message.answer(
             f"Дні {dates[0].strftime('%d.%m')} — {dates[-1].strftime('%d.%m')} закриті для замовлень! Минула черга на ці дні видалена"
         )
+
+    for orders_batch, batch_reason in to_cancel_batches:
+        await notify_orders_cancelled(bot, orders_batch, batch_reason)
 
 
 async def open(message: Message, uow: UnitOfWork):
@@ -897,8 +966,7 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
     conn = sqlite3.connect("radio.db")
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         WITH stats AS (
             SELECT
                 video_id,
@@ -926,13 +994,11 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
         FROM stats
         WHERE rating > 2 OR rating < -2
         ORDER BY ABS(rating) ASC;
-        """
-    )
+        """)
     orders_columns = [desc[0] for desc in cursor.description]
     orders_rows = cursor.fetchall()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT video_id, confirm, set_by, timestamp
         FROM auto_moderation
         WHERE is_deleted = FALSE
@@ -943,8 +1009,7 @@ async def auto_moderation_list(message: Message, uow: UnitOfWork):
             WHEN confirm = FALSE THEN 3
             ELSE 4
         END;
-        """
-    )
+        """)
     lists_columns = [desc[0] for desc in cursor.description]
     lists_rows = cursor.fetchall()
 
@@ -1352,9 +1417,7 @@ async def force_play(message: Message, uow: UnitOfWork):
 async def force_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
     url = get_text_after_command(message)
     if not url:
-        await message.reply(
-            "Невірний формат команди! /команда {youtube_playlist_url}"
-        )
+        await message.reply("Невірний формат команди! /команда {youtube_playlist_url}")
         return
 
     now = datetime.now()
@@ -1507,12 +1570,175 @@ async def force_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
         )
 
 
+async def background_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
+    url = get_text_after_command(message)
+    if not url:
+        await message.reply("Невірний формат команди! /команда {youtube_playlist_url}")
+        return
+
+    now = datetime.now()
+    ether = await uow.ethers.find_one(
+        Ether.ether_date == now.date(),
+        Ether.start_time <= now.time(),
+        Ether.cancelled == False,
+        Ether.end_time >= now.time(),
+        options=[selectinload(Ether.orders)],
+    )
+
+    if ether is None:
+        today = date.today()
+        day_state = await uow.day_state.find_one(DayState.state_date == today)
+
+        if day_state and day_state.is_holiday:
+            day_schedule = SCHEDULE.get("6")
+        else:
+            day_schedule = SCHEDULE.get(str(now.weekday()))
+
+        cur_time = now.time()
+
+        if day_schedule is not None:
+            for cur_ether in day_schedule:
+                if has_time_passed(
+                    cur_time, cur_ether.get("start")
+                ) and not has_time_passed(cur_time, cur_ether.get("end")):
+                    start_hour, start_minute = map(int, cur_ether["start"].split(":"))
+                    start_time = time(start_hour, start_minute)
+
+                    end_hour, end_minute = map(int, cur_ether["end"].split(":"))
+                    end_time = time(end_hour, end_minute)
+
+                    ether = await uow.ethers.create(
+                        Ether(
+                            name=cur_ether["name"],
+                            start_time=start_time,
+                            end_time=end_time,
+                            ether_date=today,
+                            cancelled=False,
+                        )
+                    )
+
+                    break
+
+    if ether is None:
+        await message.answer("Етер не знайдено!")
+        return
+
+    try:
+        playlist_id = None
+        if "list=" in url:
+            playlist_id = url.split("list=")[-1].split("&")[0]
+        elif "/playlist/" in url:
+            playlist_id = url.split("/playlist/")[-1].split("?")[0]
+        if not playlist_id:
+            await message.reply("Не вдалося визначити playlist_id з посилання.")
+            return
+        playlist = ytmusic.get_playlist(playlist_id, limit=None)
+        tracks = playlist.get("tracks", [])
+    except Exception as e:
+        await message.reply(f"Помилка при отриманні плейлиста: {e}")
+        return
+
+    if not tracks:
+        await message.reply("Плейлист порожній або не вдалося отримати треки.")
+        return
+
+    now = datetime.now()
+    ether_start_dt = datetime.combine(ether.ether_date, ether.start_time)
+    ether_end_dt = datetime.combine(ether.ether_date, ether.end_time)
+    fill_from = max(now, ether_start_dt)
+    ether_duration = int((ether_end_dt - fill_from).total_seconds())
+
+    if ether_duration <= 0:
+        await message.reply("До кінця етеру не залишилось часу.")
+        return
+
+    created_orders: List[Order] = []
+    seconds_filled = 0
+
+    while seconds_filled < ether_duration:
+        for track in tracks:
+            if seconds_filled >= ether_duration:
+                break
+
+            video_id = track.get("videoId")
+            title = remove_brackets(track.get("title", "") or "")
+            duration = int(track.get("duration_seconds") or 0)
+
+            if not video_id or not title or duration <= 0:
+                continue
+
+            order = await uow.orders.create(
+                Order(
+                    title=title,
+                    video_id=video_id,
+                    duration=duration,
+                    ether_id=ether.id,
+                    confirmed=False,
+                    ordered_by=0,
+                    played=False,
+                )
+            )
+            created_orders.append(order)
+
+            seconds_filled += duration + AVERAGE_SONG_SWITCH_DELAY
+
+        if is_once:
+            break
+
+    if not created_orders:
+        await message.reply("Не вдалося додати жодного треку з плейлиста.")
+        return
+
+    await uow.flush()
+
+    started_now = False
+
+    if not player.is_playing:
+        active_order = await uow.orders.find_one(
+            Order.ether_id == ether.id,
+            Order.played == False,
+            Order.confirmed == True,
+        )
+
+        if active_order is None:
+            first_order = created_orders[0]
+            source = await _get_order_play_source(first_order)
+
+            if source:
+                first_order.confirmed = True
+                first_order.decided_by = 0
+                first_order.decision_timestamp = datetime.now()
+                first_order.play_start = datetime.now()
+                first_order.expected_play_time = first_order.play_start
+                await uow.flush()
+
+                player.play(source)
+                started_now = True
+
+    mode_text = "одноразово" if is_once else "із заповненням до кінця етеру"
+    reply = f"🎵 Додано {len(created_orders)} треків з плейлиста у фоновий режим ({mode_text})."
+    if started_now:
+        reply += "\nЗараз нічого не грало — тому плейліст запущено одразу."
+    else:
+        reply += "\nТреки гратимуть автоматично, коли не буде інших замовлень."
+
+    await message.reply(reply)
+
+
 async def force_playlist(message: Message, uow: UnitOfWork):
     await force_play_playlist(message, uow, False)
 
 
 async def force_playlist_once(message: Message, uow: UnitOfWork):
     await force_play_playlist(message, uow, True)
+
+
+async def background_playlist(message: Message, uow: UnitOfWork):
+    await background_play_playlist(message, uow, False)
+
+
+async def background_playlist_once(message: Message, uow: UnitOfWork):
+    await background_play_playlist(message, uow, True)
 
 
 async def add_volume_change_point(message: Message, uow: UnitOfWork):
@@ -1772,8 +1998,7 @@ async def merge_ethers(message: Message, uow: UnitOfWork):
 
         if not merged_any:
             results.append(
-                f"ℹ️ [{d.strftime('%d.%m')}] Немає що об'єднувати "
-                f"(не знайдено однойменних ETH-записів)"
+                f"ℹ️ [{d.strftime('%d.%m')}] Немає що об'єднувати (не знайдено етерів з подкастами)"
             )
 
     await uow.flush()

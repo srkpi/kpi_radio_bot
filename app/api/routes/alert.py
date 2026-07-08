@@ -10,6 +10,7 @@ from app.bot.models.order import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.states.alert_state import get_alert_state, set_alert_state
+from app.bot.services.notifications import notify_orders_cancelled
 
 from app.database import sessionmaker
 from app.settings import settings
@@ -35,16 +36,12 @@ async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
         Order.played == False,
     )
 
-    to_notify: list[tuple[str, int]] = []
+    cancelled_orders = list(orders)
     for order in orders:
         order.played = True
-        if order.decision_timestamp and order.confirmed:
-            to_notify.append((order.title, order.ordered_by))
 
     await uow.flush()
-
-    for title, user_id in to_notify:
-        await bot.send_message(user_id, f"Замовлення скасоване через тривогу: {title}")
+    await notify_orders_cancelled(bot, cancelled_orders, "повітряна тривога")
 
 
 @alert_router.post("")

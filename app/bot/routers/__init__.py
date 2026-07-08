@@ -22,6 +22,8 @@ from app.bot.routers.commands import (
     ban_list,
     ban_with_feedback,
     blacklist,
+    background_playlist,
+    background_playlist_once,
     cancel,
     delete_block_phrase,
     force_playlist_once,
@@ -235,6 +237,16 @@ router.message.register(
 router.message.register(
     force_playlist_once,
     Command("force_playlist_once"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    background_playlist,
+    Command("background_playlist"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    background_playlist_once,
+    Command("background_playlist_once"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 

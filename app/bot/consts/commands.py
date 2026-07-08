@@ -15,6 +15,7 @@ ADMIN_COMMANDS = [
     BotCommand(command="unholiday", description="Зробити етери як у будній день"),
     BotCommand(command="close", description="Закрити день до замовлень (+ причина)"),
     BotCommand(command="open", description="Відкрити день до замовлень"),
+    BotCommand(command="merge_ethers", description="Злити етери (+ опціонально дата)"),
     BotCommand(command="volume", description="Задати гучність програвання"),
     BotCommand(command="temp_volume", description="Задати гучність на поточний трек"),
     BotCommand(command="alert", description="Запустити тривогу"),
@@ -41,6 +42,14 @@ ADMIN_COMMANDS = [
     BotCommand(
         command="force_playlist_once",
         description="Примусове одноразове програвання плейлісту протягом етеру (+ url)",
+    ),
+    BotCommand(
+        command="background_playlist",
+        description="Фоновий плейлист: грає, коли немає інших замовлень (+ url)",
+    ),
+    BotCommand(
+        command="background_playlist_once",
+        description="Фоновий плейлист одноразово: грає, коли немає інших замовлень (+ url)",
     ),
     BotCommand(command="traktor", description="Їде трактор митися"),
     BotCommand(command="shark", description="Baby Shark Dance"),

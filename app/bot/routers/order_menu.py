@@ -47,7 +47,7 @@ ytmusic = YTMusic()
 BREAK_MAX_AUTO_DURATION = 5 * 60  # 5 minutes
 
 # Maximum user orders auto-confirmed during the evening / long ether.
-LONG_ETHER_USER_LIMIT = 5
+LONG_ETHER_USER_LIMIT = 10
 # Maximum user orders auto-confirmed during short (break) ethers.
 SHORT_ETHER_USER_LIMIT = 2
 
@@ -134,11 +134,7 @@ async def audio_input(
     if message.audio:
         file_id = message.audio.file_id
         duration = message.audio.duration or 0
-        title = (
-            message.audio.title
-            or message.audio.file_name
-            or "Аудіофайл"
-        )
+        title = message.audio.title or message.audio.file_name or "Аудіофайл"
         title = remove_brackets(title)
     elif message.voice:
         file_id = message.voice.file_id
@@ -235,9 +231,14 @@ async def search_song_by_url(
         )
         return
 
-    if apply_restrictions and duration > 8 * 60:
-        await message.answer("Пісня занадто довга!")
-        return
+    if apply_restrictions:
+        if duration > 8 * 60:
+            await message.answer("Пісня занадто довга!")
+            return
+
+        if duration < 60:
+            await message.answer("Пісня занадто коротка!")
+            return
 
     language = get_song_language(song_full_title)
 
@@ -366,9 +367,7 @@ async def on_ether_selected(
         ether_start_time = time(ether_start_hour, ether_start_minute)
 
         # Also extract schedule end time so we can find covering (merged) ethers.
-        ether_end_hour, ether_end_minute = map(
-            int, selected_ether["end"].split(":")
-        )
+        ether_end_hour, ether_end_minute = map(int, selected_ether["end"].split(":"))
         ether_end_time_sched = time(ether_end_hour, ether_end_minute)
 
         ether = await uow.ethers.find_one(
@@ -449,8 +448,8 @@ async def on_ether_selected(
                     # gaps, causing the shown time to be earlier than actual.
                     # Now both active and inactive paths use the same formula.
                     play_delay = AVERAGE_SONG_SWITCH_DELAY * len(ether_orders)
-                    not_confimred_orders_duration += (
-                        AVERAGE_SONG_SWITCH_DELAY * len(ether_orders_2)
+                    not_confimred_orders_duration += AVERAGE_SONG_SWITCH_DELAY * len(
+                        ether_orders_2
                     )
                     play_time = now + timedelta(seconds=total_duration + play_delay)
                 else:
@@ -542,9 +541,11 @@ async def on_ether_selected(
                             and (
                                 now.date() == ether.ether_date
                                 and now < order.expected_play_time
-                                and now + timedelta(minutes=30) > order.expected_play_time
+                                and now + timedelta(minutes=30)
+                                > order.expected_play_time
                             )
-                            or play_time - timedelta(minutes=30) < order.expected_play_time
+                            or play_time - timedelta(minutes=30)
+                            < order.expected_play_time
                         ):
                             will_play_soon = True
 
@@ -592,14 +593,18 @@ async def on_ether_selected(
                     confirmation_status = False
                     cancel_text = "🚫 Замовлення автоматично відхилено. Рекомендуємо ознайомитися з правилами або написати адміністраторам через функцію зворотного зв'язку!"
                     decision_label = f"🚫 Відхлилено автоматично ({cancel_reason})"
-            elif rating > 2 or (auto_moderation_choice and auto_moderation_choice.confirm):
+            elif rating > 2 or (
+                auto_moderation_choice and auto_moderation_choice.confirm
+            ):
                 moderation_flag = (
                     "🟩 "
                     if auto_moderation_choice and auto_moderation_choice.confirm == True
                     else "🟢 "
                 )
 
-                user_limit = LONG_ETHER_USER_LIMIT if is_long_ether else SHORT_ETHER_USER_LIMIT
+                user_limit = (
+                    LONG_ETHER_USER_LIMIT if is_long_ether else SHORT_ETHER_USER_LIMIT
+                )
                 if user_orders <= user_limit:
                     confirmation_status = True
 
@@ -617,8 +622,8 @@ async def on_ether_selected(
                     else:
                         cancel_text += f"Грає з {alredy_play_start_str}"
                 else:
-                    scheduled_play_time_str = scheduled_order.expected_play_time.strftime(
-                        "%H:%M"
+                    scheduled_play_time_str = (
+                        scheduled_order.expected_play_time.strftime("%H:%M")
                     )
                     cancel_text += f"Почне грати о {scheduled_play_time_str}"
 
@@ -627,18 +632,14 @@ async def on_ether_selected(
 
             elif recent_ordered:
                 cancel_text = "🚫 Замовлення автоматично відхилено, адже така пісня вже замовлена та чекає модерації."
-                decision_label = (
-                    "🚫 Відхлилено автоматично (вже замовлено, чекає апруву на цей етер)"
-                )
+                decision_label = "🚫 Відхлилено автоматично (вже замовлено, чекає апруву на цей етер)"
                 confirmation_status = False
 
             elif will_play_soon:
                 cancel_text = (
                     "🚫 Замовлення автоматично відхилено, має програти на цьому етері."
                 )
-                decision_label = (
-                    "🚫 Відхлилено автоматично (вже замовлено, має програти на цьому етері)"
-                )
+                decision_label = "🚫 Відхлилено автоматично (вже замовлено, має програти на цьому етері)"
                 confirmation_status = False
 
             elif recently_played:
@@ -658,7 +659,7 @@ async def on_ether_selected(
                 and not is_long_ether
                 and duration > BREAK_MAX_AUTO_DURATION
             ):
-                confirmation_status = None   # route to manual review
+                confirmation_status = None  # route to manual review
                 decision_label = "⏳ Очікує модерації (трек > 5 хв на перерві)"
 
         play_now = False

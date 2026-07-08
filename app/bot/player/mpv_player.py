@@ -229,11 +229,29 @@ async def get_current_track(
                 Order.confirmed == True,
                 order=[Order.decision_timestamp.asc()],
             )
+            now = datetime.now()
 
             if not order:
-                return
+                # Немає підтверджених замовлень — пробуємо взяти наступний
+                # трек із фонового плейлиста (ordered_by == 0, див.
+                # background_playlist/background_playlist_once) і
+                # автоматично підтверджуємо його "від імені системи".
+                order = await uow.orders.find_one(
+                    Order.ether_id == ether.id,
+                    Order.played == False,
+                    Order.ordered_by == 0,
+                    order=[Order.id.asc()],
+                )
 
-            order.play_start = datetime.now()
+                if not order:
+                    return
+
+                order.confirmed = True
+                order.decided_by = 0
+                order.decision_timestamp = now
+                order.expected_play_time = now
+
+            order.play_start = now
 
             await uow.flush()
 
