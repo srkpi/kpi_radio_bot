@@ -311,7 +311,10 @@ async def text_input(
     message: Message, message_input: MessageInput, manager: DialogManager
 ):
     uow: UnitOfWork = manager.middleware_data["uow"]
-    song_info = await search_song_by_url(message.text, message, uow, True)
+    apply_restrictions = (
+        not settings.ADMINS or message.from_user.id not in settings.ADMINS
+    )
+    song_info = await search_song_by_url(message.text, message, uow, apply_restrictions)
     if song_info is None:
         return
 

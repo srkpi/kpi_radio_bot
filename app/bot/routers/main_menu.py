@@ -15,7 +15,7 @@ from app.bot.states.main import MainStates
 from app.bot.states.order import OrderStates
 from app.bot.states.player import PlayerStates
 from app.bot.states.schedule import ScheduleStates
-
+from app.settings import settings
 
 async def forward_to_order(
     message: Message, message_input: MessageInput, manager: DialogManager
@@ -23,7 +23,8 @@ async def forward_to_order(
     await ban_check(manager)
 
     uow: UnitOfWork = manager.middleware_data["uow"]
-    song_info = await search_song_by_url(message.text, message, uow, True)
+    apply_restrictions = not settings.ADMINS or message.from_user.id not in settings.ADMINS
+    song_info = await search_song_by_url(message.text, message, uow, apply_restrictions)
     if song_info is None:
         return
 
