@@ -2,7 +2,7 @@ import html
 import operator
 from datetime import date, datetime, timedelta, time
 from urllib.parse import urlparse, parse_qs
-from typing import Any, List
+from typing import Any, List, Optional
 import re
 
 import regex
@@ -19,7 +19,7 @@ from aiogram_dialog.widgets.text import Const, Format, Jinja
 from app.bot.banned_user_exception import BannedUserException
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY, WEEKDAYS
-from app.bot.keyboards.confirm import get_confirm_keyboard
+from app.bot.keyboards.confirm import get_confirm_keyboard, get_moderation_keyboard
 from app.bot.models import Ether, Order
 from app.bot.models.auto_moderation import AutoModeration
 from app.bot.models.banned_user import BannedUser
@@ -518,6 +518,10 @@ async def on_ether_selected(
 
         order_title = html.escape(manager.dialog_data["audio"]["title"])
 
+        # Defined unconditionally so it's always safe to check further down,
+        # regardless of which branch (file order / regular order) runs below.
+        auto_moderation_choice: Optional[AutoModeration] = None
+
         if is_file_order:
             confirmation_status = True
             decision_label = f"✅ Файл: {order_title}"
@@ -792,7 +796,17 @@ async def on_ether_selected(
             f"від {callback.from_user.mention_html()} ({user_approved_orders}/{user_orders})\n"
             + decision_label,
             reply_markup=(
-                get_confirm_keyboard(order.id, user_id)
+                (
+                    # Song already has an active auto-moderation record
+                    # (whitelist / blacklist / manual list) but still ended
+                    # up needing manual confirmation - keep the plain
+                    # Прийняти/Відхилити pair.
+                    get_confirm_keyboard(order.id, user_id)
+                    if auto_moderation_choice is not None
+                    # Brand new song, not in any list yet - offer the
+                    # 🟢/🟡/🔴 moderation shortcut instead.
+                    else get_moderation_keyboard(order.id, user_id)
+                )
                 if confirmation_status is None
                 else None
             ),

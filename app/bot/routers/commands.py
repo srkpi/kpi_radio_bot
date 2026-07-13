@@ -292,10 +292,14 @@ async def now_playing(message: Message, uow: UnitOfWork):
     )
     actual_time = order.play_start.strftime("%H:%M:%S") if order.play_start else "—"
     chat_formatted = str(settings.ADMINS_CHAT_ID).replace("-100", "")
+    url_label = (
+        f"https://t.me/c/{chat_formatted}/{settings.ADMINS_MODERATION_THREAD_ID}/{order.order_message_id}\n"
+        if order.order_message_id
+        else ""
+    )
 
     text = (
-        f"{order.title}\n"
-        f"https://t.me/c/{chat_formatted}/{settings.ADMINS_MODERATION_THREAD_ID}/{order.order_message_id}\n\n"
+        f"{order.title}\n{url_label}\n"
         f"⏰ Очікуваний старт: {expected_time}\n"
         f"▶️ Фактичний: {actual_time}"
     )

@@ -7,10 +7,12 @@ from aiogram.types import CallbackQuery
 from sqlalchemy.orm import selectinload
 
 from app.bot.consts.other import AVERAGE_SONG_SWITCH_DELAY
+from app.bot.keyboards.confirm import get_confirm_keyboard
 from app.bot.models import Order
 from app.bot.player.mpv_player import player, _get_order_play_source
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.schemas.confirm import ConfirmOrder
+from app.bot.services.auto_moderation import set_auto_moderation
 from app.bot.services.song_downloader import (
     add_to_download_queue,
     add_telegram_to_download_queue,
@@ -327,3 +329,66 @@ async def decline_order(
         await callback.bot.send_message(
             callback_data.user_id, f"❌ Твоє замовлення відхилено: {order.title}"
         )
+
+
+async def approve_and_whitelist(
+    callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
+) -> None:
+    """🟢 - approve the order and add the video to the whitelist."""
+    order = await uow.orders.find_one(Order.id == callback_data.order_id)
+
+    if order and order.video_id:
+        await set_auto_moderation(uow, order.video_id, True, callback.from_user.id)
+        await uow.flush()
+
+    await confirm_order(callback, callback_data, uow)
+
+
+async def reject_and_blacklist(
+    callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
+) -> None:
+    """🔴 - reject the order and add the video to the blacklist."""
+    order = await uow.orders.find_one(Order.id == callback_data.order_id)
+
+    if order and order.video_id:
+        await set_auto_moderation(uow, order.video_id, False, callback.from_user.id)
+        await uow.flush()
+
+    await decline_order(callback, callback_data, uow)
+
+
+async def send_to_manual(
+    callback: CallbackQuery, callback_data: ConfirmOrder, uow: UnitOfWork
+) -> None:
+    """🟡 - add the video to the manual list and switch the keyboard to the
+    regular "Прийняти"/"Відхилити" pair, without deciding the order yet."""
+    order_id = callback_data.order_id
+
+    if order_id not in order_locks:
+        order_locks[order_id] = asyncio.Lock()
+
+    async with order_locks[order_id]:
+        try:
+            order = await uow.orders.find_one(Order.id == order_id)
+
+            if order is None:
+                text = callback.message.html_text + "\nОрдер не знайдено"
+                await change_callback_message_text(callback, text)
+                return
+
+            if order.decision_timestamp:
+                # Already decided (e.g. by a concurrent click) - the keyboard
+                # is stale, leave it as is.
+                return
+
+            if order.video_id:
+                await set_auto_moderation(
+                    uow, order.video_id, None, callback.from_user.id
+                )
+                await uow.flush()
+        finally:
+            order_locks.pop(order_id, None)
+
+    await callback.message.edit_reply_markup(
+        reply_markup=get_confirm_keyboard(order_id, callback_data.user_id)
+    )

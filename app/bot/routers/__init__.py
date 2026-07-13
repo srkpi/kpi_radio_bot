@@ -5,7 +5,13 @@ from aiogram_dialog.api.exceptions import UnknownIntent, OutdatedIntent
 
 from app.bot.banned_user_exception import BannedFeedbackException, BannedUserException
 from app.bot.consts.actions import Actions
-from app.bot.routers.confirm import confirm_order, decline_order
+from app.bot.routers.confirm import (
+    approve_and_whitelist,
+    confirm_order,
+    decline_order,
+    reject_and_blacklist,
+    send_to_manual,
+)
 from app.bot.routers.errors import (
     context_not_found,
     user_feedback_is_banned,
@@ -79,6 +85,15 @@ router.callback_query.register(
 )
 router.callback_query.register(
     decline_order, ConfirmOrder.filter(F.action == Actions.decline)
+)
+router.callback_query.register(
+    approve_and_whitelist, ConfirmOrder.filter(F.action == Actions.whitelist)
+)
+router.callback_query.register(
+    reject_and_blacklist, ConfirmOrder.filter(F.action == Actions.blacklist)
+)
+router.callback_query.register(
+    send_to_manual, ConfirmOrder.filter(F.action == Actions.manual)
 )
 
 private_router = Router()
