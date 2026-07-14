@@ -34,6 +34,7 @@ async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
     orders = await uow.orders.find(
         Order.ether_id == ether.id,
         Order.played == False,
+        Order.confirmed == True,
     )
 
     cancelled_orders = list(orders)
