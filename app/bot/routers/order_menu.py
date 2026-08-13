@@ -543,16 +543,17 @@ async def on_ether_selected(
                         same_ether_orders.append(order)
                         now = datetime.now()
 
-                        if (
-                            order.played == False
-                            and (
+                        if order.played == False and (
+                            (
                                 now.date() == ether.ether_date
                                 and now < order.expected_play_time
                                 and now + timedelta(minutes=30)
                                 > order.expected_play_time
                             )
-                            or play_time - timedelta(minutes=30)
-                            < order.expected_play_time
+                            or (
+                                play_time - timedelta(minutes=30)
+                                < order.expected_play_time
+                            )
                         ):
                             will_play_soon = True
 

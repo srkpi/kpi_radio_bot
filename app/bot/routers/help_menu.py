@@ -69,7 +69,7 @@ support = Const("""
 async def get_data(dialog_manager: DialogManager, **kwargs):
     help_items = [
         ("📝 Замовлення пісні", "1"),
-        ("❗️ Модерація", "2"),
+        ("❗️ Модерація (правила)", "2"),
         ("⏭ Плейліст", "3"),
         ("🖌 Зворотний звʼязок", "4"),
     ]
