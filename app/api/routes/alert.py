@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime, timezone
+
+import aiohttp
 from aiogram import Bot
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.api.schemas.alert import RegionAlerts
+from app.api.schemas.alert import AlertLevelEntry, RegionAlertStatus, RegionAlerts
 from app.api.stubs import BotStub
 from app.bot.models.ether import Ether
 from app.bot.models.order import Order
@@ -15,8 +18,11 @@ from app.bot.services.notifications import notify_orders_cancelled
 from app.database import sessionmaker
 from app.settings import settings
 
-
 alert_router = APIRouter(prefix="/alert", tags=["Alert webhook"])
+logger = logging.getLogger(__name__)
+
+REGION_ID = 31
+UKRAINEALARM_ALERTS_URL = f"https://api.ukrainealarm.com/api/v3/alerts/{REGION_ID}"
 
 RED = "Red"
 YELLOW = "Yellow"
@@ -70,12 +76,77 @@ def resolve_alert_level(update: RegionAlerts) -> str:
     if update.active_alert_levels:
         latest = max(
             update.active_alert_levels,
-            key=lambda entry: entry.created_at or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda entry: entry.created_at
+            or datetime.min.replace(tzinfo=timezone.utc),
         )
         if latest.alert_level in (RED, YELLOW):
             return latest.alert_level
 
     return RED
+
+
+def resolve_current_alert_level(regions: list[RegionAlertStatus]) -> str | None:
+    all_levels: list[AlertLevelEntry] = []
+    has_active_alert = False
+
+    for region in regions:
+        for alert in region.active_alerts or []:
+            has_active_alert = True
+            all_levels.extend(alert.active_alert_levels or [])
+
+    if not has_active_alert:
+        return None
+
+    if not all_levels:
+        return RED
+
+    latest = max(
+        all_levels,
+        key=lambda entry: entry.created_at or datetime.min.replace(tzinfo=timezone.utc),
+    )
+
+    return latest.alert_level if latest.alert_level in (RED, YELLOW) else RED
+
+
+async def fetch_region_alert_status(
+    region_id: int = REGION_ID,
+) -> list[RegionAlertStatus]:
+    token = settings.UKRAINEALARM_TOKEN.get_secret_value()
+
+    async with aiohttp.ClientSession(headers={"Authorization": token}) as session:
+        async with session.get(UKRAINEALARM_ALERTS_URL) as response:
+            response.raise_for_status()
+            payload = await response.json()
+
+    return [RegionAlertStatus.model_validate(region) for region in payload]
+
+
+async def sync_alert_state_on_startup() -> None:
+    token = settings.UKRAINEALARM_TOKEN.get_secret_value()
+    if not token:
+        logger.warning(
+            "UKRAINEALARM_TOKEN is not set; skipping startup alert state sync"
+        )
+        return
+
+    try:
+        regions = await fetch_region_alert_status(REGION_ID)
+        current_level = resolve_current_alert_level(regions)
+    except Exception as e:
+        logger.exception(e)
+        return
+
+    await set_alert_level(current_level)
+
+    if current_level:
+        logger.warning(
+            "Startup: active alert detected for region %s (level=%s); "
+            "playback will stay suppressed until an all-clear is received",
+            REGION_ID,
+            current_level,
+        )
+    else:
+        logger.info("Startup: no active alert for region %s", REGION_ID)
 
 
 @alert_router.post("")
@@ -84,7 +155,7 @@ async def alert_route(
     bot: Bot = Depends(BotStub),
 ) -> JSONResponse:
     print(update)
-    if update.region_id == 31:
+    if update.region_id == REGION_ID:
         previous_level = await get_alert_level()
 
         if update.status == "Activate":

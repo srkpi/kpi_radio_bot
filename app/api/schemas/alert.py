@@ -20,3 +20,15 @@ class RegionAlerts(BaseModel):
     active_alert_levels: Optional[list[AlertLevelEntry]] = Field(
         None, alias="activeAlertLevels"
     )
+
+
+class ActiveAlert(BaseModel):
+    type: Optional[str] = None
+    active_alert_levels: Optional[list[AlertLevelEntry]] = Field(
+        None, alias="activeAlertLevels"
+    )
+
+
+class RegionAlertStatus(BaseModel):
+    region_id: Optional[str] = Field(None, alias="regionId")
+    active_alerts: Optional[list[ActiveAlert]] = Field(None, alias="activeAlerts")

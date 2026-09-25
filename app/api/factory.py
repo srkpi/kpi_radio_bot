@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import AnyUrl
 
-from app.api.routes.alert import alert_router
+from app.api.routes.alert import alert_router, sync_alert_state_on_startup
 from app.api.routes.index import index_router
 from app.api.routes.stream import stream_router
 from app.api.routes.webhook import webhook_router
@@ -92,7 +92,6 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
         ngrok.set_auth_token(token)
         tunnel = await ngrok.connect(8000)
         settings.BASE_URL = AnyUrl(tunnel.url())
-        await dispatcher.emit_startup(**workflow_data)
 
         alarm_token = settings.UKRAINEALARM_TOKEN.get_secret_value()
         if alarm_token:
@@ -105,6 +104,9 @@ def create_app(bot: Bot, dispatcher: Dispatcher, webhook_secret: str) -> FastAPI
                     "https://api.ukrainealarm.com/api/v3/webhook",
                     json={"webHookUrl": f"{settings.BASE_URL}alert"},
                 )
+
+        await sync_alert_state_on_startup()
+        await dispatcher.emit_startup(**workflow_data)
 
         await update_admins(bot)
         await upate_commands(bot)
