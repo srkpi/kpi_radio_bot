@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from app.bot.consts.ethers import SCHEDULE
 from app.bot.player.mpv_player import player, announcement_file_path, get_current_track
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.services.alarm_queue import cleanup_stale_orders
 from app.bot.services.statistics import update_statistics
 from app.bot.services.volume_changer import VolumeChanger
 from app.settings import settings
@@ -126,6 +127,9 @@ class Scheduler:
     async def auto_recovery(
         async_session: async_sessionmaker[AsyncSession], bot: Bot
     ) -> None:
+        # Drop queued songs that were delayed too long (alarm) or whose ether is over
+        await cleanup_stale_orders(async_session)
+
         if await Scheduler.play_current_song(async_session):
             return
 

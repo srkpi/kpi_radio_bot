@@ -13,6 +13,7 @@ from app.bot.models.order import Order
 from app.bot.player.mpv_player import player
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.states.alert_state import get_alert_level, set_alert_level
+from app.bot.services.alarm_queue import is_long_ether, notify_orders_delayed
 from app.bot.services.notifications import notify_orders_cancelled
 
 from app.database import sessionmaker
@@ -55,18 +56,31 @@ async def clear_queue_alert(uow: UnitOfWork, bot: Bot):
     if not ether:
         return
 
-    orders = await uow.orders.find(
-        Order.ether_id == ether.id,
-        Order.played == False,
-        Order.confirmed == True,
+    orders = list(
+        await uow.orders.find(
+            Order.ether_id == ether.id,
+            Order.played == False,
+            Order.confirmed == True,
+        )
     )
 
-    cancelled_orders = list(orders)
-    for order in orders:
+    if is_long_ether(ether):
+        # Long (evening) ether: only the song that is on air right now is
+        # stopped. The rest of the queue stays as is and is played after the
+        # all-clear. Songs delayed by more than ALARM_MAX_DELAY relative to their
+        # expected play time are cancelled later (see cleanup_stale_orders).
+        cancelled_orders = [o for o in orders if o.play_start is not None]
+        delayed_orders = [o for o in orders if o.play_start is None]
+    else:
+        cancelled_orders = orders
+        delayed_orders = []
+
+    for order in cancelled_orders:
         order.played = True
 
     await uow.flush()
     await notify_orders_cancelled(bot, cancelled_orders, "повітряна тривога")
+    await notify_orders_delayed(bot, delayed_orders, ether)
 
 
 def resolve_alert_level(update: RegionAlerts) -> str:

@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
+from app.bot.services.alarm_queue import cleanup_stale_orders
 from app.bot.services.song_downloader import (
     delete_song,
     download_telegram_file,
@@ -210,6 +211,9 @@ async def get_current_track(
             _last_announcement_played.add(key)
 
             return announcement_file_path
+
+    # Songs delayed too long (e.g. by an air-raid alarm) must not be played
+    await cleanup_stale_orders(async_session)
 
     async with async_session() as session, session.begin():
         async with UnitOfWork(session) as uow:
