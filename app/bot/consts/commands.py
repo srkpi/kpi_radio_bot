@@ -44,6 +44,10 @@ ADMIN_COMMANDS = [
         description="Примусове одноразове програвання плейлісту протягом етеру (+ url)",
     ),
     BotCommand(
+        command="play_playlist",
+        description="Додати плейліст в кінець черги (+ макс. хвилин, url)",
+    ),
+    BotCommand(
         command="background_playlist",
         description="Фоновий плейлист: грає, коли немає інших замовлень (+ url)",
     ),

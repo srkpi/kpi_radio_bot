@@ -7,7 +7,11 @@ from typing import Iterable, Optional
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.bot.consts.other import ALARM_MAX_DELAY, LONG_ETHER_MIN_DURATION
+from app.bot.consts.other import (
+    ALARM_MAX_DELAY,
+    EVENING_ETHER_NAME,
+    LONG_ETHER_DURATION,
+)
 from app.bot.models import Ether, Order
 from app.bot.repositories.uow import UnitOfWork
 from app.bot.services.notifications import (
@@ -28,7 +32,7 @@ def is_long_ether(ether: Ether) -> bool:
     start = datetime.combine(ether.ether_date, ether.start_time)
     end = datetime.combine(ether.ether_date, ether.end_time)
 
-    return end - start >= LONG_ETHER_MIN_DURATION
+    return ether.name == EVENING_ETHER_NAME or end - start > LONG_ETHER_DURATION
 
 
 def get_order_deadline(order: Order) -> Optional[datetime]:

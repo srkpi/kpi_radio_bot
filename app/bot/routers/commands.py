@@ -39,6 +39,15 @@ from app.bot.routers.order_menu import (
 )
 from app.bot.services.feedback import get_user_message_id
 from app.bot.services.notifications import notify_orders_cancelled
+from app.bot.services.playlist_queue import (
+    PlayPlaylistArgsError,
+    StopReason,
+    estimate_queue_end,
+    extract_playlist_id,
+    parse_play_playlist_args,
+    parse_playlist_tracks,
+    plan_playlist,
+)
 from app.bot.services.song_downloader import (
     add_to_download_queue,
     delete_song,
@@ -1362,18 +1371,83 @@ async def restart(message: Message, uow: UnitOfWork):
     await message.reply("🔄 Бот зараз перезапуститься!")
 
 
+async def show_force_played_in_queue(
+    uow: UnitOfWork,
+    now: datetime,
+    admin_id: int,
+    title: str,
+    video_id: Optional[str],
+    file_id: Optional[str],
+    duration: int,
+) -> Optional[Order]:
+    """
+    Put a force-played song into the queue of the ether that is on air, as the
+    song that is playing right now, so users see it in the queue.
+
+    Everything that is still waiting in this ether starts after it, so the
+    expected play times of those orders are shifted accordingly.
+    Returns None (nothing to do) when there is no ether on air right now.
+    """
+    day_state = await uow.day_state.find_one(DayState.state_date == now.date())
+    if day_state and day_state.is_closed:
+        return None
+
+    ether = await get_or_create_current_ether(uow, now, day_state)
+    if ether is None:
+        return None
+
+    forced_order = await uow.orders.create(
+        Order(
+            title=title,
+            video_id=video_id,
+            file_id=file_id,
+            duration=duration,
+            ether_id=ether.id,
+            confirmed=True,
+            ordered_by=admin_id,
+            decided_by=admin_id,
+            decision_timestamp=now,
+            played=False,
+            play_start=now,
+            expected_play_time=now,
+        )
+    )
+
+    waiting_orders = await uow.orders.find(
+        Order.ether_id == ether.id,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start == None,
+        order=[Order.decision_timestamp.asc()],
+    )
+
+    # Same order and same pacing as get_current_track / confirm_order use
+    cursor = now + timedelta(seconds=duration + AVERAGE_SONG_SWITCH_DELAY)
+    for waiting_order in waiting_orders:
+        waiting_order.expected_play_time = cursor
+        cursor += timedelta(
+            seconds=waiting_order.duration + AVERAGE_SONG_SWITCH_DELAY
+        )
+
+    return forced_order
+
+
 async def force_play(message: Message, uow: UnitOfWork):
     url = get_text_after_command(message)
     reply = message.reply_to_message
 
     song_path = None
     title = ""
+    video_id: Optional[str] = None
+    file_id: Optional[str] = None
+    duration = 0
 
     if url:
         video_info = await search_song_by_url(url, message, uow, False)
         if video_info:
             video_id = video_info["video_id"]
             title = video_info["title"]
+            duration = video_info.get("duration") or 0
             existing_path = get_song_path(video_id)
             song_path = (
                 str(existing_path)
@@ -1387,7 +1461,11 @@ async def force_play(message: Message, uow: UnitOfWork):
 
         if downloaded_path:
             song_path = str(downloaded_path)
-            title = getattr(attachment, "file_name", "Голосове повідомлення")
+            file_id = attachment.file_id
+            duration = getattr(attachment, "duration", None) or 0
+            title = getattr(attachment, "file_name", None) or (
+                "Голосове повідомлення" if reply.voice else "Аудіофайл"
+            )
         else:
             await message.reply("Не вдалось завантажити аудіо :(")
             return
@@ -1395,6 +1473,9 @@ async def force_play(message: Message, uow: UnitOfWork):
         await message.reply(
             "Невірний формат! Введіть URL або дайте відповідь (reply) на аудіо/голосове."
         )
+        return
+
+    if not song_path:
         return
 
     today = datetime.now()
@@ -1413,9 +1494,14 @@ async def force_play(message: Message, uow: UnitOfWork):
         order.played = True
         await uow.flush()
 
-    if song_path:
-        player.play(song_path)
-        await message.reply(f"⏯️ Примусово програється: **{title}**")
+    # Within an ether the song becomes the current order of the queue
+    await show_force_played_in_queue(
+        uow, today, message.from_user.id, title, video_id, file_id, duration
+    )
+    await uow.flush()
+
+    player.play(song_path)
+    await message.reply(f"⏯️ Примусово програється: **{title}**")
 
 
 async def force_play_playlist(message: Message, uow: UnitOfWork, is_once: bool):
@@ -1743,6 +1829,231 @@ async def background_playlist(message: Message, uow: UnitOfWork):
 
 async def background_playlist_once(message: Message, uow: UnitOfWork):
     await background_play_playlist(message, uow, True)
+
+
+def format_duration(total_seconds: int) -> str:
+    hours, rest = divmod(max(int(total_seconds), 0), 3600)
+    minutes, seconds = divmod(rest, 60)
+
+    if hours:
+        return f"{hours}:{minutes:02}:{seconds:02}"
+
+    return f"{minutes}:{seconds:02}"
+
+
+async def get_or_create_current_ether(
+    uow: UnitOfWork, now: datetime, day_state: Optional[DayState]
+) -> Optional[Ether]:
+    """The ether that is on air right now (created from the schedule if needed)."""
+    ether = await uow.ethers.find_one(
+        Ether.ether_date == now.date(),
+        Ether.start_time <= now.time(),
+        Ether.cancelled == False,
+        Ether.end_time >= now.time(),
+    )
+    if ether is not None:
+        return ether
+
+    weekday = "6" if day_state and day_state.is_holiday else str(now.weekday())
+    day_schedule = SCHEDULE.get(weekday)
+    if day_schedule is None:
+        return None
+
+    for cur_ether in day_schedule:
+        if has_time_passed(now.time(), cur_ether.get("start")) and not has_time_passed(
+            now.time(), cur_ether.get("end")
+        ):
+            start_hour, start_minute = map(int, cur_ether["start"].split(":"))
+            end_hour, end_minute = map(int, cur_ether["end"].split(":"))
+
+            return await uow.ethers.create(
+                Ether(
+                    name=cur_ether["name"],
+                    start_time=time(start_hour, start_minute),
+                    end_time=time(end_hour, end_minute),
+                    ether_date=now.date(),
+                    cancelled=False,
+                )
+            )
+
+    return None
+
+
+async def play_playlist(message: Message, uow: UnitOfWork):
+    """
+    /play_playlist [max_minutes] url
+
+    Adds the playlist songs to the end of the current queue as regular confirmed
+    orders. Songs are taken from the start of the playlist while they fit into
+    max_minutes (switch delays included) and into the time left until the ether
+    ends.
+    """
+    try:
+        max_minutes, url = parse_play_playlist_args(get_text_after_command(message))
+    except PlayPlaylistArgsError as e:
+        await message.reply(str(e))
+        return
+
+    playlist_id = extract_playlist_id(url)
+    if not playlist_id:
+        await message.reply("Не вдалося визначити playlist_id з посилання.")
+        return
+
+    if await get_alert_state():
+        await message.reply(
+            "Наразі триває повітряна тривога! Додайте плейліст після відбою."
+        )
+        return
+
+    now = datetime.now()
+    day_state = await uow.day_state.find_one(DayState.state_date == now.date())
+    if day_state and day_state.is_closed:
+        await message.reply("Сьогодні день закритий для замовлень (/open).")
+        return
+
+    ether = await get_or_create_current_ether(uow, now, day_state)
+    if ether is None:
+        await message.reply("Етер не знайдено!")
+        return
+
+    try:
+        playlist = await asyncio.to_thread(
+            ytmusic.get_playlist, playlist_id, limit=None
+        )
+    except Exception as e:
+        await message.reply(f"Помилка при отриманні плейлиста: {e}")
+        return
+
+    tracks = parse_playlist_tracks(playlist.get("tracks") or [], remove_brackets)
+    if not tracks:
+        await message.reply("Плейлист порожній або не вдалося отримати треки.")
+        return
+
+    # Where the current queue ends (same estimate as for a regular order that is
+    # confirmed into a running ether, see confirm_order).
+    current_playing = await uow.orders.find_one(
+        Order.ether_id == ether.id,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.play_start != None,
+        order=[Order.play_start.desc()],
+    )
+    queued_orders = await uow.orders.find(
+        Order.ether_id == ether.id,
+        Order.played == False,
+        Order.confirmed == True,
+        Order.expected_play_time != None,
+    )
+
+    queued_durations = {o.id: o.duration for o in queued_orders}
+    if current_playing is not None:
+        queued_durations.setdefault(current_playing.id, current_playing.duration)
+
+    play_first_now = not queued_durations
+    if play_first_now:
+        queue_end = now
+    else:
+        playing_elapsed = 0
+        if current_playing is not None and current_playing.play_start:
+            playing_elapsed = max(
+                round((now - current_playing.play_start).total_seconds()), 0
+            )
+
+        queue_end = estimate_queue_end(
+            now,
+            list(queued_durations.values()),
+            playing_elapsed,
+            AVERAGE_SONG_SWITCH_DELAY,
+        )
+
+    ether_end = datetime.combine(ether.ether_date, ether.end_time)
+    plan = plan_playlist(
+        tracks,
+        queue_end,
+        ether_end,
+        max_minutes * 60 if max_minutes is not None else None,
+        AVERAGE_SONG_SWITCH_DELAY,
+    )
+
+    if not plan.tracks:
+        if plan.stop_reason == StopReason.MAX_TIME:
+            await message.reply(
+                f"Перший трек плейлиста не вміщається у {max_minutes:g} хв."
+            )
+        else:
+            await message.reply(
+                f"До кінця етеру ({ether_end.strftime('%H:%M')}) не залишилось "
+                f"часу для треків плейлиста. Черга закінчиться орієнтовно о "
+                f"{queue_end.strftime('%H:%M')}."
+            )
+        return
+
+    admin_id = message.from_user.id
+    decision_base = datetime.now()
+    created_orders: list[Order] = []
+
+    for index, planned in enumerate(plan.tracks):
+        track = planned.track
+        order = await uow.orders.create(
+            Order(
+                title=track.title,
+                video_id=track.video_id,
+                duration=track.duration,
+                ether_id=ether.id,
+                confirmed=True,
+                ordered_by=admin_id,
+                decided_by=admin_id,
+                # Strictly increasing: the queue is played by decision_timestamp
+                decision_timestamp=decision_base + timedelta(microseconds=index),
+                played=False,
+                expected_play_time=planned.expected_play_time,
+            )
+        )
+        created_orders.append(order)
+
+    first_order = created_orders[0]
+    if play_first_now:
+        first_order.play_start = now
+        first_order.expected_play_time = now
+
+    await uow.flush()
+
+    for order in created_orders[1 if play_first_now else 0 :]:
+        await add_to_download_queue(order.video_id)
+
+    if play_first_now:
+        source = await _get_order_play_source(first_order)
+        if source:
+            player.play(source)
+
+    first_time = (
+        "зараз"
+        if play_first_now
+        else first_order.expected_play_time.strftime("%H:%M")
+    )
+    last_planned = plan.tracks[-1]
+    last_end = last_planned.expected_play_time + timedelta(
+        seconds=last_planned.track.duration
+    )
+
+    reply = (
+        f"🎵 Додано {len(created_orders)} треків з плейлиста в кінець черги "
+        f"({format_duration(plan.total_seconds)} з паузами між треками).\n"
+        f"🕓 Перший програє: {first_time}, останній закінчиться орієнтовно о "
+        f"{last_end.strftime('%H:%M')}."
+    )
+
+    if plan.stop_reason == StopReason.MAX_TIME:
+        reply += f"\n⏱ Решта треків не вмістилась у {max_minutes:g} хв."
+    elif plan.stop_reason == StopReason.ETHER_END:
+        reply += (
+            f"\n⏱ Решта треків не вміщається до кінця етеру "
+            f"({ether_end.strftime('%H:%M')})."
+        )
+    else:
+        reply += "\nВесь плейліст додано."
+
+    await message.reply(reply)
 
 
 async def add_volume_change_point(message: Message, uow: UnitOfWork):

@@ -40,6 +40,7 @@ from app.bot.routers.commands import (
     merge_ethers,
     not_moderated,
     now_playing,
+    play_playlist,
     remove_lists,
     restart,
     send_database,
@@ -252,6 +253,11 @@ router.message.register(
 router.message.register(
     force_playlist_once,
     Command("force_playlist_once"),
+    F.chat.id == settings.ADMINS_CHAT_ID,
+)
+router.message.register(
+    play_playlist,
+    Command("play_playlist"),
     F.chat.id == settings.ADMINS_CHAT_ID,
 )
 router.message.register(
