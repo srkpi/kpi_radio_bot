@@ -500,7 +500,7 @@ async def on_ether_selected(
                 play_time = datetime.now()
                 play_time_str = current_time.strftime("%H:%M")
             else:
-                play_time = datetime.combine(datetime.today().date(), start_time)
+                play_time = datetime.combine(ether.ether_date, start_time)
                 play_time_str = start_time.strftime("%H:%M")
 
                 if play_time + timedelta(seconds=duration) > datetime.combine(

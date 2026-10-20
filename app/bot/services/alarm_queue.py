@@ -35,16 +35,35 @@ def is_long_ether(ether: Ether) -> bool:
     return ether.name == EVENING_ETHER_NAME or end - start > LONG_ETHER_DURATION
 
 
-def get_order_deadline(order: Order) -> Optional[datetime]:
-    """Latest moment the order may start playing (None if it has no expected time)."""
-    if order.expected_play_time is None:
+def get_expected_play_time(order: Order, ether: Ether) -> Optional[datetime]:
+    """
+    Expected play time of the order, always on the date of its ether.
+
+    Orders that were the first one into an ether on a later day used to be stored
+    with the date the order was placed instead of the date of the ether (only the
+    time of day was right), so the date is taken from the ether.
+    """
+    expected = order.expected_play_time
+    if expected is None:
         return None
 
-    return order.expected_play_time + ALARM_MAX_DELAY
+    if expected.date() != ether.ether_date:
+        expected = datetime.combine(ether.ether_date, expected.time())
+
+    return expected
 
 
-def is_order_overdue(order: Order, now: datetime) -> bool:
-    deadline = get_order_deadline(order)
+def get_order_deadline(order: Order, ether: Ether) -> Optional[datetime]:
+    """Latest moment the order may start playing (None if it has no expected time)."""
+    expected = get_expected_play_time(order, ether)
+    if expected is None:
+        return None
+
+    return expected + ALARM_MAX_DELAY
+
+
+def is_order_overdue(order: Order, ether: Ether, now: datetime) -> bool:
+    deadline = get_order_deadline(order, ether)
 
     return deadline is not None and now > deadline
 
@@ -64,7 +83,7 @@ async def notify_orders_delayed(
 
         text += "\nВоно програє після відбою тривоги."
 
-        deadline = get_order_deadline(order)
+        deadline = get_order_deadline(order, ether)
         cancel_after = min(deadline, ether_end) if deadline else ether_end
         text += (
             f"\nЯкщо тривога триватиме довше ніж до "
@@ -110,9 +129,16 @@ async def cancel_stale_orders(
     ether_ended: list[Order] = []
 
     for order in orders:
-        if is_order_overdue(order, now):
+        ether = ethers_by_id[order.ether_id]
+
+        if now.time() < ether.start_time:
+            # The ether is not on air yet (e.g. it is just past midnight and the
+            # order is for the afternoon), so nothing can be late
+            continue
+
+        if is_order_overdue(order, ether, now):
             overdue.append(order)
-        elif now.time() > ethers_by_id[order.ether_id].end_time:
+        elif now.time() > ether.end_time:
             ether_ended.append(order)
         else:
             continue
